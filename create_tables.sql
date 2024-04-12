@@ -3,23 +3,14 @@ CREATE TABLE IF NOT EXISTS users
     user_id         INTEGER PRIMARY KEY,
     user_name       TEXT,
     date_created    TEXT,
-    gender          INTEGER,
     status          INTEGER,
     is_admin        INTEGER
 );
---CREATE TABLE IF NOT EXISTS prayers
---(
---    id INTEGER PRIMARY KEY,
---    id_person INTEGER,
---    motive TEXT,
---    date TEXT,
---    status INTEGER,
---    FOREIGN KEY(id_person) REFERENCES people(id)
---);
 CREATE TABLE IF NOT EXISTS chats
 (
     chat_id         INTEGER PRIMARY KEY,
     date_joined     TEXT,
+    memer_count     INTEGER,
     status          INTEGER
 );
 CREATE TABLE IF NOT EXISTS connections

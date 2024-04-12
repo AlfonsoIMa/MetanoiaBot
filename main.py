@@ -42,7 +42,7 @@ from datetime import date
 from handler import BotParser as bp
 from sqlite3 import IntegrityError
 from typing import Final
-from telegram import ReplyKeyboardMarkup, ReplyKeyboardRemove, ChatInviteLink, Update, error
+from telegram import ReplyKeyboardMarkup, ReplyKeyboardRemove, ChatInviteLink, Update, constants
 from telegram.ext import (
     Application,
     CommandHandler,
@@ -101,7 +101,12 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     user_id       = update.effective_user.id
     chat_id       = update.effective_chat.id
     if(user_id != chat_id):
-        await update.message.reply_text("(Welcome group message) Invite/Cancel")
+        # Get the member count
+        await update.effective_chat.send_action(constants.ChatAction.TYPING)
+        members = await context.bot.get_chat_members_count(chat_id)
+        
+        # Register the chat
+        HANDLER.insert_chat(chat_id, members)
         return GROUP_REGISTER
     else:
         await update.message.reply_text("(Welcome message) TODO",
@@ -110,6 +115,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
                                                                            resize_keyboard = True))
     return CHOOSING_MENU
 
+#User-based functions
 async def contact(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     await update.message.reply_text("Send us an email to info@metanoia\-movement\.org\n\n[Send it now\!](info@metanoia-movement.org)",
                                     reply_markup = ReplyKeyboardMarkup(OPER_KEYBOARD, input_field_placeholder = "CHOOSE AN OPTION", resize_keyboard = True), disable_web_page_preview = False, parse_mode = "MarkdownV2")
@@ -125,33 +131,29 @@ async def conference(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
                                     reply_markup = ReplyKeyboardMarkup(OPER_KEYBOARD, input_field_placeholder = "CHOOSE AN OPTION", resize_keyboard = True), disable_web_page_preview = False, parse_mode = "MarkdownV2")
     return CHOOSING_MENU
 
+# Group based functions
 async def register(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     user_id       = update.effective_user.id
     user_username = update.effective_user.username
-    attempt       = None
     chat_id       = update.effective_chat.id
-    logging.info(f"Verifying: {user_username}")
-    if(not HANDLER.is_user(user_id)):
-        await update.message.reply_text(f"(Hello Message) Hey {update.effective_user.first_name}! Registering into the database…")
-        logging.info(f"Not found: {user_username}. Beginning registration…")
-        await update.message.reply_text("Choose your sex:",
-                                        reply_markup = ReplyKeyboardMarkup(GEND_KEYBOARD, input_field_placeholder = "CHOOSE AN OPTION", resize_keyboard = True))
-        return CHOOSING_GENDER
-    elif(HANDLER.is_free(user_id)):
-        await update.message.reply_text(f"(Hello Message) Hey {update.effective_user.first_name}! You're already registered! Let's find someone for you to pray and connect!")
-        pairs = HANDLER.find_pair_for(user_id)
-        pairs = "\n".join([row[1] for row in pairs])
-        if(user_id != chat_id):
-            if(pairs != 0):
-                await update.effective_chat.send_message("Please respond with @username you want to invite, \"RANDOM\" to pick a random user or \"CANCEL\" to cancel the invitation.\n\n" + str(pairs))
-                return USER_PICKED
-            else:
-                await update.effective_chat.send_message('(Odd user) Looks like there are no available users to pair you with, but that means you have the opportunity of sharing this bot with your local church or group. Whenever someone else joins, I will make sure to pair them with you! Blessings :)')
-        else:
-            await update.effective_chat.send_message("It looks like we're on a personal chat, please add me to a group and trigger /start one more time there")
-    else:
-        await update.effective_chat.send_message('(Odd user) Looks like we are in a group conversation already… (#TODO - Get the other user to reply? confirm activity or report? maybe user misclicked?)')
-        # TODO - List connection and users there.
+    logging.debug(f"Verifying: {user_username}")
+    try:
+        # Register the user if it's the first time interacting with the bot
+        if(not HANDLER.is_user(user_id)):
+            HANDLER.insert_user(user_id, user_username)
+        # Link user with the connection if it's not already
+        if(not HANDLER.is_in_connection(user_id, chat_id)):
+            HANDLER.insert_connection(user_id, chat_id)
+        connections   = HANDLER.return_users_in_connections(chat_id)
+        member_count  = HANDLER.return_chat_member_count(chat_id)
+        logging.debug(f'connections: {connections}')
+        logging.debug(f'member_count: {member_count}')
+        if(len(connections[0]) == member_count):
+            HANDLER.update_chat()
+        # if member count matches -> updates
+        # else - back to register
+    except Exception as e:
+        raise
     return MAIN_LOOP
 
 async def gender_chosen(update: Update, context: ContextTypes.DEFAULT_TYPE, sex: int) -> int: 
@@ -238,8 +240,7 @@ def main() -> None:
                 MessageHandler(filters.Regex("F"),   lambda update, context: gender_chosen(update, context, 1)),
             ],
             GROUP_REGISTER: [
-                MessageHandler(filters.Regex(re.compile("INVITE", re.IGNORECASE)), register),
-                MessageHandler(filters.Regex("CANCEL"),                            start),   # TODO - What to do?
+                MessageHandler(None, register),
             ],
             USER_PICKED: [
                 MessageHandler(filters.Regex(re.compile("CANCEL", re.IGNORECASE)), start),

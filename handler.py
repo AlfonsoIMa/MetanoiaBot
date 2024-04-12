@@ -54,11 +54,11 @@ class BotParser():
         q_result = self.cursor.execute("SELECT COUNT(connection_id) FROM connections WHERE status <> 3" + (query if discriminate else ";"))
         return q_result.fetchall()[0][0]
 
-    #def number_of_prayers(self, including_answered = False) -> int:
-    #    query = " WHERE status = 0;"
-    #    q_result = self.cursor.execute("SELECT COUNT(id) FROM prayers" + (query if including_answered else ";"))
-    #    return q_result.fetchall()[0][0]
-    
+    def return_chat_member_count(self, chat_id: int) -> int:
+        q_result = self.cursor.execute("SELECT member_count FROM chats WHERE chat_id = ?;", (chat_id,))
+        q_result = q_result.fetchall()
+        return q_result[0][0]
+
     def return_connections(self, discriminate = False, desired_status = 0) -> list:
         query = f" AND status = {desired_status};"
         q_result = self.cursor.execute("SELECT * FROM connections WHERE status <> 3" + (query if discriminate else ";"))
@@ -78,15 +78,16 @@ class BotParser():
         q_result = self.cursor.execute("SELECT user_id FROM connections WHERE chat_id = ?;", (chat_id,))
         q_result = q_result.fetchall()
         return q_result
-    
+
     def return_user_id_from_username(self, username: str) -> int:
         q_result = self.cursor.execute("SELECT user_id FROM users WHERE LOWER(user_name) = LOWER(?);", (username,))
         q_result = q_result.fetchall()
         return q_result[0][0]
 
-    def insert_user(self, user_id: int, user_name: str, gender: int) -> bool:
+    # TODO - Confirm it works
+    def insert_user(self, user_id: int, user_name: str) -> bool:
         try:
-            q_result = self.cursor.execute("INSERT INTO users VALUES (?, ?, ?, ?, 0, 0);", (user_id, user_name, self.TODAY.strftime('%y%m%d'), gender))
+            q_result = self.cursor.execute("INSERT INTO users VALUES (?, ?, ?, 0, 0);", (user_id, user_name, self.TODAY.strftime('%y%m%d'),))
             self.connection.commit()
             # Confirmation
             q_result = self.cursor.execute("SELECT user_id FROM users WHERE user_id = ?;", (user_id, ))
@@ -94,39 +95,19 @@ class BotParser():
                 return True
             return False
         except sqlite3.IntegrityError as e:
-            raise
-        except TypeError as e:
-            logging.error("TypeError found here! Probably trying to fetch users?")
-    
-    #def insert_prayer(self, telegram_id: int, motive: str, date: str, status: int) -> bool:
-    #    q_result        = self.cursor.execute("INSERT INTO prayers VALUES (?, ?, ?, ?, ?);", (self.generate_id(), telegram_id, motive, date, status))
-    #    current_prayers = self.cursor.execute("SELECT COUNT(id) FROM prayers WHERE id_person = ?;", (telegram_id, ))
-    #    current_prayers = current_prayers.fetchall()
-    #    self.connection.commit()
-    #    q_result        = self.cursor.execute("SELECT COUNT(id) FROM prayers WHERE id_person = ?;", (telegram_id, ))
-    #    q_result        = q_result.fetchall()
-    #    if(q_result[0][0] == current_prayers[0][0]):
-    #        return True
-    #    return False
-    
-    def insert_connection(self, user_id: int, chat_id: int) -> list:
-        user_id_pair = self.find_pair_for(user_id)
-        if(self.is_free(user_id) and user_id_pair):
-            logging.info("Pair found!")
-            self.cursor.execute("INSERT INTO chats VALUES (?, ?, ?)", (chat_id, self.TODAY.strftime('%Y-%m-%d'), 1))
-            self.cursor.execute("INSERT INTO connections (chat_id, user_id, date_creation, date_updated, status) VALUES (?, ?, ?, ?, ?);", (chat_id, user_id, self.TODAY.strftime('%Y-%m-%d'), self.TODAY.strftime('%Y-%m-%d'), 1))
-            self.cursor.execute("INSERT INTO connections (chat_id, user_id, date_creation, date_updated, status) VALUES (?, ?, ?, ?, ?);", (chat_id, user_id_pair, self.TODAY.strftime('%Y-%m-%d'), self.TODAY.strftime('%Y-%m-%d'), 1))
-            self.update_user_status(user_id, 1)
-            self.update_user_status(user_id_pair, 1)
-            self.connection.commit()
-            return [chat_id, user_id, user_id_pair]
-        logging.info("Couldn't find pair, returning None")
-        return None
-    
-    #def connect(self, chat_id: int, telegram_id_second: int) -> bool:
-    #    self.cursor.execute("UPDATE connections SET id_person_second = ? WHERE id = ?;", (telegram_id_second, chat_id))
-    #    self.connection.commit()
-    #    return True
+            return False
+
+    # TODO - Confirm it works.
+    def insert_chat(self, chat_id: int, member_count: int) -> bool:
+            self.cursor.execute("INSERT INTO chats VALUES (?, ?, ?, ?)", (chat_id, self.TODAY.strftime('%Y-%m-%d'), -1, member_count))
+        return True
+
+    # TODO - Modified. Confirm it works.
+    def insert_connection(self, user_id: int, chat_id: int) -> bool:
+        self.cursor.execute("INSERT INTO connections (chat_id, user_id, date_creation, date_updated, status) VALUES (?, ?, ?, ?, ?);", (chat_id, user_id, self.TODAY.strftime('%Y-%m-%d'), self.TODAY.strftime('%Y-%m-%d'), 1))
+        self.update_user_status(user_id, 1)
+        self.connection.commit()
+        return True
     
     def find_pair_for(self, telegram_id_to_discriminate: int):
         q_result = self.cursor.execute("SELECT user_id, user_name FROM users WHERE status = 0 AND user_id <> ? AND gender = (SELECT gender FROM users WHERE user_id = ?);", (telegram_id_to_discriminate, telegram_id_to_discriminate))
@@ -145,6 +126,15 @@ class BotParser():
         if(int(q_result[0][0]) == 0):
             return 1
         return 0
+
+    # TODO - Confirm it works.
+    def is_in_connection(self, user_id: int, chat_id: int) -> bool:
+        q_result = self.cursor.execute("SELECT connection_id FROM connections WHERE user_id = ? AND chat_id = ?;", (user_id, chat_id,))
+        q_result = q_result.fetchall()
+        if(len(q_result)):
+            return 1
+        return 0
+
 
     def was_active_today(self, user_id: int) -> bool:
         q_result = self.cursor.execute("SELECT date_updated FROM connections WHERE user_id = ?;", (user_id,))
@@ -171,6 +161,10 @@ class BotParser():
         except Exception as e:
             raise
 
+    def update_chat(self, chat_id: int, status: int = 0) -> bool:
+        # TODO
+        return True
+
     def update_connections_status(self, chat_id: int, status: int = 0) -> bool:
         try:
             if(status == 0): # Bot wants to update chat to "TODAY"
@@ -192,11 +186,4 @@ class BotParser():
         except Exception as e:
             raise
 
-    #def update_connections_id(self, old_id: int, group_chat_id: int) -> bool:
-    #    try:
-    #        q_result = self.cursor.execute("UPDATE connections SET id = ? WHERE id = ?;", (group_chat_id, old_id))
-    #        self.connection.commit()
-    #        return True
-    #    except Exception as e:
-    #        raise
- 
+
