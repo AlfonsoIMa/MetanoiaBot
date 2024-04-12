@@ -1,21 +1,9 @@
 from datetime import date
 import sqlite3, logging
 
-# TODO Method to (1) Count all users (ADMIN)
-#                (1) Count all connections (ADMIN)
-#                (1) Count all prayers (by status - ADMIN)
-#                (1) Create user
-#                (1) Create prayer request
-#              a (1) Create connection
-#                (1) Get list of all late connections
-#       a.1, b.1 (1) Update status ANY table
-#              b (1) Close connection
-#              c (1) Delete users
-#         a.0 !! (?) Get two free users or return false
-
-logging.basicConfig(format="PARSER - %(asctime)s - %(name)s - %(levelname)s - %(message)s", level=logging.INFO)
-logging.getLogger("httpx")
-logger = logging.getLogger(__name__)
+#logging.basicConfig(format="PARSER - %(asctime)s - %(name)s - %(levelname)s - %(message)s", level=logging.DEBUG)
+#logging.getLogger("httpx")
+#logger = logging.getLogger(__name__)
 
 class BotParser():
     def __init__(self, DATABASE: str):
@@ -99,7 +87,7 @@ class BotParser():
 
     # TODO - Confirm it works.
     def insert_chat(self, chat_id: int, member_count: int) -> bool:
-            self.cursor.execute("INSERT INTO chats VALUES (?, ?, ?, ?)", (chat_id, self.TODAY.strftime('%Y-%m-%d'), -1, member_count))
+        self.cursor.execute("INSERT INTO chats VALUES (?, ?, ?, ?)", (chat_id, self.TODAY.strftime('%Y-%m-%d'), member_count, -1))
         return True
 
     # TODO - Modified. Confirm it works.
@@ -135,7 +123,6 @@ class BotParser():
             return 1
         return 0
 
-
     def was_active_today(self, user_id: int) -> bool:
         q_result = self.cursor.execute("SELECT date_updated FROM connections WHERE user_id = ?;", (user_id,))
         q_result = q_result.fetchall()
@@ -162,7 +149,8 @@ class BotParser():
             raise
 
     def update_chat(self, chat_id: int, status: int = 0) -> bool:
-        # TODO
+        q_result = self.cursor.execute("UPDATE chats SET status = ? WHERE chat_id = ?;", (status, chat_id))
+        self.connection.commit()
         return True
 
     def update_connections_status(self, chat_id: int, status: int = 0) -> bool:

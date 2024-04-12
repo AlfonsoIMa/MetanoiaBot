@@ -1,3 +1,8 @@
+-- Regenerate tables
+DROP TABLE users;
+DROP TABLE chats;
+DROP TABLE connections;
+
 CREATE TABLE IF NOT EXISTS users
 (
     user_id         INTEGER PRIMARY KEY,
@@ -10,7 +15,7 @@ CREATE TABLE IF NOT EXISTS chats
 (
     chat_id         INTEGER PRIMARY KEY,
     date_joined     TEXT,
-    memer_count     INTEGER,
+    member_count    INTEGER,
     status          INTEGER
 );
 CREATE TABLE IF NOT EXISTS connections
