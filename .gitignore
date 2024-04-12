@@ -1,0 +1,11 @@
+__pycache__/
+bin/
+include/
+lib/
+*.cfg
+key.txt
+metanoia.db
+private_users.sql
+sample_data.sql
+.DS_Store
+*.swp
