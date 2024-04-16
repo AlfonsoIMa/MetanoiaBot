@@ -5,6 +5,7 @@ lib/
 *.cfg
 key.txt
 metanoia.db
+metanoia.db-journal
 private_users.sql
 sample_data.sql
 .DS_Store
