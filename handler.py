@@ -75,6 +75,7 @@ class BotParser():
 
     def insert_chat(self, chat_id: int, member_count: int) -> bool:
         self.cursor.execute("INSERT INTO chats VALUES (?, ?, ?, ?, ?)", (chat_id, self.TODAY.strftime('%Y-%m-%d'), self.TODAY.strftime('%Y-%m-%d'), member_count, -1))
+        self.cursor.commit()
         return True
 
     # TODO - Modified. Confirm it works.
