@@ -15,6 +15,7 @@ CREATE TABLE IF NOT EXISTS chats
 (
     chat_id         INTEGER PRIMARY KEY,
     date_joined     TEXT,
+    date_updated    TEXT,
     member_count    INTEGER,
     status          INTEGER
 );

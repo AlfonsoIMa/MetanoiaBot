@@ -1,10 +1,6 @@
 from datetime import date
 import sqlite3, logging
 
-#logging.basicConfig(format="PARSER - %(asctime)s - %(name)s - %(levelname)s - %(message)s", level=logging.DEBUG)
-#logging.getLogger("httpx")
-#logger = logging.getLogger(__name__)
-
 class BotParser():
     def __init__(self, DATABASE: str):
         self.ID_COUNTER  = 0
@@ -25,13 +21,7 @@ class BotParser():
     - DATE IS FORMATED YYYY-MM-DD
     """
 
-    def generate_id(self) -> int:
-        if(self.TODAY != date.today()):
-            self.TODAY = date.today()
-            self.ID_COUNTER = 0
-        self.ID_COUNTER += 1
-        return int(self.TODAY.strftime('%y%m%d') + str(self.ID_COUNTER).zfill(5))
-
+    # TODO - Useful?
     def number_of_users(self, including_linked = False) -> int:
         query = " WHERE status = 0;"
         q_result = self.cursor.execute("SELECT COUNT(id) FROM users" + (query if including_linked else ";"))
@@ -46,12 +36,20 @@ class BotParser():
         q_result = self.cursor.execute("SELECT member_count FROM chats WHERE chat_id = ?;", (chat_id,))
         q_result = q_result.fetchall()
         return q_result[0][0]
-
+    
+    # TODO - Useful?
+    def return_chats(self, discriminate = False, desired_status = 0) -> list:
+        query = f" AND status = {desired_status};"
+        q_result = self.cursor.execute("SELECT * FROM chats WHERE status <> 3" + (query if discriminate else ";"))
+        return q_result.fetchall()
+    
     def return_connections(self, discriminate = False, desired_status = 0) -> list:
         query = f" AND status = {desired_status};"
         q_result = self.cursor.execute("SELECT * FROM connections WHERE status <> 3" + (query if discriminate else ";"))
         return q_result.fetchall()
 
+
+    # TODO - Change
     def return_users(self, field: str = 'user_id', discriminate = False, desired_status: int = -1, desired_gender: int = -1) -> list:
         query_status = f" status = {desired_status}"
         query_gender = f" gender = {desired_gender}"
@@ -67,27 +65,16 @@ class BotParser():
         q_result = q_result.fetchall()
         return q_result
 
-    def return_user_id_from_username(self, username: str) -> int:
-        q_result = self.cursor.execute("SELECT user_id FROM users WHERE LOWER(user_name) = LOWER(?);", (username,))
-        q_result = q_result.fetchall()
-        return q_result[0][0]
-
-    # TODO - Confirm it works
     def insert_user(self, user_id: int, user_name: str) -> bool:
         try:
             q_result = self.cursor.execute("INSERT INTO users VALUES (?, ?, ?, 0, 0);", (user_id, user_name, self.TODAY.strftime('%y%m%d'),))
             self.connection.commit()
-            # Confirmation
-            q_result = self.cursor.execute("SELECT user_id FROM users WHERE user_id = ?;", (user_id, ))
-            if(len(q_result.fetchall()) == 1):
-                return True
-            return False
+            return True
         except sqlite3.IntegrityError as e:
             return False
 
-    # TODO - Confirm it works.
     def insert_chat(self, chat_id: int, member_count: int) -> bool:
-        self.cursor.execute("INSERT INTO chats VALUES (?, ?, ?, ?)", (chat_id, self.TODAY.strftime('%Y-%m-%d'), member_count, -1))
+        self.cursor.execute("INSERT INTO chats VALUES (?, ?, ?, ?, ?)", (chat_id, self.TODAY.strftime('%Y-%m-%d'), self.TODAY.strftime('%Y-%m-%d'), member_count, -1))
         return True
 
     # TODO - Modified. Confirm it works.
@@ -97,23 +84,15 @@ class BotParser():
         self.connection.commit()
         return True
     
-    def find_pair_for(self, telegram_id_to_discriminate: int):
-        q_result = self.cursor.execute("SELECT user_id, user_name FROM users WHERE status = 0 AND user_id <> ? AND gender = (SELECT gender FROM users WHERE user_id = ?);", (telegram_id_to_discriminate, telegram_id_to_discriminate))
-        q_result = q_result.fetchall()
-        logging.info(q_result)
-        return q_result if len(q_result) else 0
-     
     def is_user(self, user_id: int) -> bool:
         q_result = self.cursor.execute("SELECT user_id FROM users WHERE user_id = ?;", (user_id,))
         q_result = q_result.fetchall()
         return 1 if len(q_result) else 0
-    
-    def is_free(self, user_id: int) -> bool:
-        q_result = self.cursor.execute("SELECT status FROM users WHERE user_id = ?;", (user_id,))
+
+    def is_administrator(self, user_id: int) -> bool:
+        q_result = self.cursor.execute("SELECT is_admin FROM users WHERE user_id = ?;", (user_id,))
         q_result = q_result.fetchall()
-        if(int(q_result[0][0]) == 0):
-            return 1
-        return 0
+        return q_result[0][0]
 
     # TODO - Confirm it works.
     def is_in_connection(self, user_id: int, chat_id: int) -> bool:
@@ -173,5 +152,4 @@ class BotParser():
             return True
         except Exception as e:
             raise
-
 
