@@ -38,11 +38,11 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SO
 """
 
 import logging, threading, time, re
-from datetime import date
+from datetime import date, datetime
 from handler import BotParser as bp
 from sqlite3 import IntegrityError
 from typing import Final
-from telegram import ReplyKeyboardMarkup, ReplyKeyboardRemove, ChatInviteLink, Update, error
+from telegram import ReplyKeyboardMarkup, ReplyKeyboardRemove, ChatInviteLink, Update, constants
 from telegram.ext import (
     Application,
     CommandHandler,
@@ -60,49 +60,42 @@ BOT_USERNAME:   Final = '@TheTheologianBot'
 DATABASE:       Final = 'metanoia.db'
 HANDLER:        Final = bp(DATABASE)
 CLIENT = Application.chat_data
-MAIN_LOOP, CHOOSING_MENU, CHOOSING_GENDER, GROUP_REGISTER, USER_PICKED, PRAYING, = range(6)
-OPER_KEYBOARD:  Final = [["CONTACT", "ORDER MATERIAL"], ["CONFERENCE", "REGISTRATION"]]
-REGI_KEYBOARD:  Final = [["REGISTER", "CANCEL"]]
-GEND_KEYBOARD:  Final = [["MALE", "FEMALE"]]
+MAIN_LOOP, REGISTRATION, PRAYING, CHOOSING_MENU = range(4)
+OPER_KEYBOARD:  Final = [["CONTACT", "ORDER MATERIAL"], ["CONFERENCE",], ["PRAY FOR ME"]]
 
 # LOGGING
-logging.basicConfig(format="MAIN APP - %(asctime)s - %(name)s - %(levelname)s - %(message)s", level=logging.INFO)
+logging.basicConfig(format="MAIN APP - %(asctime)s - %(name)s - %(levelname)s - %(message)s", level=logging.DEBUG)
 logging.getLogger("httpx")
 logger = logging.getLogger(__name__)
 
-def commit_the_database():
-    while True:
-        logging.info("Updating values…")
-        try:
-            pass
-            # TODO - COMMIT THE DATABASE?
-        except Exception as e:
-            pass
-
-def subroutine():
-    # EVERYDAY CHECK DATE_CHAT_UPDATED
-    # TODO - GET TODAY /
-    #               COMPARE TODAY WITH CONNECTIONS.DATE_UPDATED / 
-    #               IF MORE THAN 7 DAYS, SEND MESSAGE_ONE /
-    #               IF MORE THAN 14 DAYS, SEND MESSAGE_TOW /
-    #               IF MORE THAN 30 DAYS, CLOSE AND UPDATE STATUS
-    # TODO - Broadcast Group messages
-    # TODO - Store / Purchase products (every day update file with links and stuff)
-    # INACTIVE ALL USERS
-    logging.info("Running dates to see activity today!")
-    #for row_fetched in HANDLER.return_users():
-    #    HANDLER.update_user_activeness_today(row_fetched[0])
-    logging.info("Succesfully resetted dates")
-    today = date.today().strftime('%Y-%m-%d')
-    time.sleep(86400)
-    pass
-
+# TODO - Implement
+# Proper bot implementations
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     user_id       = update.effective_user.id
     chat_id       = update.effective_chat.id
+    logging.debug(f'\n\n\n/start has been triggered by {user_id} on {chat_id}!')
     if(user_id != chat_id):
-        await update.message.reply_text("(Welcome group message) Invite/Cancel")
-        return GROUP_REGISTER
+        if(not context.bot.can_read_all_group_messages):
+            logging.error(f'\n\n\nGroup {chat_id} has no permissions to read messages! Informing {user_id}')
+            await update.effective_chat.send_message("(Lack Permissions) I don't have permission to see this group's messages! Please ensure I have permissions in the settings bar of this group!")
+            return MAIN_LOOP
+
+        # Get the member count
+        await update.effective_chat.send_action(constants.ChatAction.TYPING)
+        members = await update.effective_chat.get_member_count() - 1
+        logging.debug(f'\n\n\nGroup {chat_id} has {members} member(s)!')
+        
+        # Register the chat
+        try:
+            await update.effective_chat.send_message("(Welcome message) Beginning registry… I need everyone to send me a message to register you!")
+            logging.debug(f'\n\n\nRegistering {chat_id} with {members} member(s)!')
+            HANDLER.insert_chat(chat_id, members)
+            logging.debug(f'\n\n\nSuccesful registration of {chat_id} with {members} member(s)! returning to REGISTRATION')
+        except IntegrityError as i:
+            logging.warning(f'\n\n\nIntegrityError for {chat_id} has been triggered!')
+            await update.effective_chat.send_message("(Chat_already_registered) Looks like you triggered /start in a registered chat! Going back to read updates.")
+        logging.debug(f'\n\n\nSuccesful exit from try/catch sequence, returning to REGISTRATION')
+        return REGISTRATION
     else:
         await update.message.reply_text("(Welcome message) TODO",
                                         reply_markup = ReplyKeyboardMarkup(OPER_KEYBOARD,
@@ -110,6 +103,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
                                                                            resize_keyboard = True))
     return CHOOSING_MENU
 
+#User-based functions
 async def contact(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     await update.message.reply_text("Send us an email to info@metanoia\-movement\.org\n\n[Send it now\!](info@metanoia-movement.org)",
                                     reply_markup = ReplyKeyboardMarkup(OPER_KEYBOARD, input_field_placeholder = "CHOOSE AN OPTION", resize_keyboard = True), disable_web_page_preview = False, parse_mode = "MarkdownV2")
@@ -125,142 +119,136 @@ async def conference(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
                                     reply_markup = ReplyKeyboardMarkup(OPER_KEYBOARD, input_field_placeholder = "CHOOSE AN OPTION", resize_keyboard = True), disable_web_page_preview = False, parse_mode = "MarkdownV2")
     return CHOOSING_MENU
 
+# TODO - implement in both group and private
+async def pray(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    await update.effective_chat.send_message("#TODO - This function is still in development, come back soon! ;)")
+    return CHOOSING_MENU
+
+# Group based functions
 async def register(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     user_id       = update.effective_user.id
     user_username = update.effective_user.username
-    attempt       = None
     chat_id       = update.effective_chat.id
-    logging.info(f"Verifying: {user_username}")
-    if(not HANDLER.is_user(user_id)):
-        await update.message.reply_text(f"(Hello Message) Hey {update.effective_user.first_name}! Registering into the database…")
-        logging.info(f"Not found: {user_username}. Beginning registration…")
-        await update.message.reply_text("Choose your sex:",
-                                        reply_markup = ReplyKeyboardMarkup(GEND_KEYBOARD, input_field_placeholder = "CHOOSE AN OPTION", resize_keyboard = True))
-        return CHOOSING_GENDER
-    elif(HANDLER.is_free(user_id)):
-        await update.message.reply_text(f"(Hello Message) Hey {update.effective_user.first_name}! You're already registered! Let's find someone for you to pray and connect!")
-        pairs = HANDLER.find_pair_for(user_id)
-        pairs = "\n".join([row[1] for row in pairs])
-        if(user_id != chat_id):
-            if(pairs != 0):
-                await update.effective_chat.send_message("Please respond with @username you want to invite, \"RANDOM\" to pick a random user or \"CANCEL\" to cancel the invitation.\n\n" + str(pairs))
-                return USER_PICKED
-            else:
-                await update.effective_chat.send_message('(Odd user) Looks like there are no available users to pair you with, but that means you have the opportunity of sharing this bot with your local church or group. Whenever someone else joins, I will make sure to pair them with you! Blessings :)')
-        else:
-            await update.effective_chat.send_message("It looks like we're on a personal chat, please add me to a group and trigger /start one more time there")
-    else:
-        await update.effective_chat.send_message('(Odd user) Looks like we are in a group conversation already… (#TODO - Get the other user to reply? confirm activity or report? maybe user misclicked?)')
-        # TODO - List connection and users there.
-    return MAIN_LOOP
-
-async def gender_chosen(update: Update, context: ContextTypes.DEFAULT_TYPE, sex: int) -> int: 
-    user_id       = update.effective_user.id
-    user_username = update.effective_user.username
-    logging.info(f"Registering: {user_username}")
-    HANDLER.insert_user(user_id, user_username, sex)
-    await update.effective_chat.send_message('Succesfully registered! Going back to main menu!')
-    await start(update, context)
-    return CHOOSING_MENU
-
-async def connect(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    message = update.message.text
-    logging.info(f"Connect triggered for {update.effective_user.id}!")
+    logging.debug(f"\n\n\nVerifying: {user_username}")
     try:
-        link: ChatInviteLink = await update.effective_chat.create_invite_link()
-        if(message.lower() == "random"): # TODO - Change methods to implement a decision based connection
-            logging.info(f"User {update.effective_user.id} chose 'random'!")
-            await update.effective_chat.send_message("(User found) I've found a pair for you!")
-            attempt = HANDLER.insert_connection(user_id, chat_id)
-            if(attempt is not None):
-                link: ChatInviteLink = await update.effective_chat.create_invite_link()
-                await update.effective_chat.send_message(link.invite_link)
-                await context.bot.send_message(chat_id = attempt[2], text = f"You've been invited to join @ {link.invite_link}")
-                await update.effective_chat.send_message("(Invitation sent) I've sent an invitation for someone to join this group, let's see if they join! :)")
+        # Register the user if it's the first time interacting with the bot
+        if(not HANDLER.is_user(user_id)):
+            await update.effective_chat.send_message(f"(New_User) It's a pleasure to meet you {user_username}, recording you into the database!")
+            HANDLER.insert_user(user_id, user_username)
+        
+        # Link user with the connection if it's not already
+        if(not HANDLER.is_in_connection(user_id, chat_id)):
+            HANDLER.insert_connection(user_id, chat_id)
+        
+        # Confirm all users are recorded in db.connections, else loop until satisfied
+        connections   = HANDLER.return_users_in_connections(chat_id)
+        member_count  = HANDLER.return_chat_member_count(chat_id)
+        users_left    = member_count - len(connections)
+        logging.debug(f'connections: {connections}')
+        logging.debug(f'member_count: {member_count}')
+        if(users_left == 0):
+            await update.effective_chat.send_message(f"(All_Users_Ready) We're all set, let's start praying and reading together!")
+            HANDLER.update_chat(chat_id, 0)
             return MAIN_LOOP
-        else:
-            logging.info(f"User {update.effective_user.id} chose user {message}!")
-            await update.effective_chat.send_message("Non random triggered!")
-            HANDLER.return_user_id_from_username(message)
-            await update.effective_chat.send_message(link.invite_link)
-    except IndexError as e:
-        await update.effective_chat.send_message(f"(User mistyped error) It appears that '{message}' is not a username in my database, can you try again (or cancel)?")
-        return USER_PICKED
-    except BadRequest as e:
-        await update.effective_chat.send_message("(Not administrator) Looks like I'm not an administrator of this group, please make me an administrator to continue!")
-        return MAIN_LOOP
-    return MAIN_LOOP
-
-async def pray(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    await update.effective_chat.send_message("#TODO - This function is still in development, come back soon! ;)")
-    return MAIN_LOOP
+        await update.effective_chat.send_message(f"(Lacking_Connections) I still lack {users_left} to connect with me! I can't update this chat until everyone is registered, please introduce yourselves to me!")
+    except Exception as e:
+        raise
+    return REGISTRATION
 
 async def update_chat(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     chat_id = update.effective_chat.id
     user_id = update.effective_user.id
+    logging.debug(f"\n\n\nReading updates from: {user_id}")
     if(chat_id != user_id):
-        logging.info("Method update_chat() triggered!")
+        logging.debug(f"Method update_chat() triggered on chat {chat_id}!")
         try:
-            logging.info(f"Attempting updating activeness for {user_id}")
+            logging.debug(f"Attempting updating activeness for {user_id}")
             HANDLER.update_user_activeness_today(user_id, chat_id)
             logging.debug("Activenness today updated")
             updated = HANDLER.update_connections_status(chat_id)
             if(updated):
-                await update.effective_chat.send_message(f"All connections updated for {chat_id}")
-                logging.debug("All connections updated")
+                logging.info(f"All connections updated for {chat_id}")
         except Exception as e:
             logging.error(e.with_traceback)
             raise
     else:
-        logging.info("Method update_chat() triggered on personal chat… Ignoring…")
+        logging.debug("\n\n\nMethod update_chat() triggered on personal chat… Ignoring…")
     return MAIN_LOOP
+
+# OPERATOR COMMAND - Subroutines and logical implementations
+async def run_operator(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    user_id = update.effective_user.id
+    if(not HANDLER.is_administrator(user_id)): # and user_id != update.effective_chat.id):
+        logging.error(f'User {user_id} tried to trigger /run without operator permissions!')
+        return MAIN_LOOP
+    else:
+        await update.effective_user.send_message("Running master command…")
+        # Setting all connections to False to read from today
+        logging.info("Resetting all activeness to False on all chats!")
+        today           = date.today().strftime('%Y-%m-%d')
+        all_connections = HANDLER.return_connections(discriminate = True)
+        for row_fetched in all_connections:
+            # Update all active connections to 1
+            HANDLER.update_connections_status(row_fetched[1], 1)
+            logging.debug(f'Updated {row_fetched[1]}:{row_fetched[2]} to status INACTIVE for today')
+        logging.info("All activeness set to False on all chats!")
+    
+        # Set all chats to inactive
+        all_chats = HANDLER.return_chats() 
+        for row_fetched in all_chats:
+            # Update status on old chats based on date and send message accordingly
+            days_passed = days_between(row_fetched[2], today)
+            if(days_passed in range(3, 7)):
+                HANDLER.update_chat(row_fetched[0], 1)
+            elif(days_passed in range(8, 15)):
+                pass
+            elif(days_passed in range(16, 29)):
+                HANDLER.update_chat(row_fetched[0], 2) 
+
+            # All active chats set to 1
+            if(row_fetched[2] == 0):
+                HANDLER.update_chats(row_fetched[0], 1)
+
+            logging.debug(f'Updated {row_fetched[1]}:{row_fetched[2]} to status INACTIVE for today')
+        logging.info("All activeness set to False on all chats!")
+
+        logging.info("Succesfully reset dates")
+        time.sleep(50) # 86400 is one whole day
+    return MAIN_LOOP
+
+def days_between(dateOne: str, dateTwo: str) -> int:
+    dOne        = datetime.strptime(dateOne, "%Y-%m-%d").date()
+    dTwo        = datetime.strptime(dateTwo, "%Y-%m-%d").date()
+    return (dTwo - dOne).days
 
 async def error(update: Update, context: ContextTypes.DEFAULT_TYPE):
     print(f'Update {update} caused error:\n\n{context.error}\n\n{context.error.with_traceback}')
     await context.bot.send_message(chat_id = '1523978922', text = f'Update {update} caused error:\n\n{context.error}\n\n{context.error.with_traceback}')
 
 def main() -> None:
-    # updater = Updater(TOKEN, connection_pool_size = 100)
     convStart = ConversationHandler(
-        entry_points = [CommandHandler("start", start), CommandHandler("pray", pray)],
-        states = {
-            MAIN_LOOP: [
-                MessageHandler(None, update_chat),
-            ],
-            CHOOSING_MENU: [
-                MessageHandler(filters.Regex("CONTACT"),        contact),
-                MessageHandler(filters.Regex("ORDER MATERIAL"), order_material),
-                MessageHandler(filters.Regex("CONFERENCE"),     conference),
-                MessageHandler(filters.Regex("REGISTRATION"),   register),
-            ],
-            CHOOSING_GENDER: [
-                MessageHandler(filters.Regex("M"),   lambda update, context: gender_chosen(update, context, 0)),
-                MessageHandler(filters.Regex("F"),   lambda update, context: gender_chosen(update, context, 1)),
-            ],
-            GROUP_REGISTER: [
-                MessageHandler(filters.Regex(re.compile("INVITE", re.IGNORECASE)), register),
-                MessageHandler(filters.Regex("CANCEL"),                            start),   # TODO - What to do?
-            ],
-            USER_PICKED: [
-                MessageHandler(filters.Regex(re.compile("CANCEL", re.IGNORECASE)), start),
-                MessageHandler(filters.Regex(re.compile("RANDOM", re.IGNORECASE)), connect),
-                MessageHandler(None,                                               connect),
-            ],
-            PRAYING: [],
-        },
+        entry_points = [CommandHandler("start", start),
+                        CommandHandler("pray", pray),
+                        CommandHandler("run", run_operator)],
+        states = {MAIN_LOOP: [MessageHandler(None, update_chat)],
+                  REGISTRATION: [MessageHandler(None, register)],
+                  PRAYING: [MessageHandler(None, pray)],
+                  CHOOSING_MENU: [MessageHandler(filters.Regex("CONTACT"),        contact),
+                                  MessageHandler(filters.Regex("ORDER MATERIAL"), order_material),
+                                  MessageHandler(filters.Regex("CONFERENCE"),     conference),
+                                  MessageHandler(filters.Regex("PRAY FOR ME"),    pray),
+                                  MessageHandler(None,                            start)]},
         fallbacks = [CommandHandler("stop", error)],
         allow_reentry = True
     )
     application = Application.builder().token(TOKEN).concurrent_updates(True).pool_timeout(350).connection_pool_size(700).build()
     application.add_handler(convStart)
     application.add_error_handler(error)
-    # application.run_polling(allowed_updates = Update.ALL_TYPES, poll_interval = 0.1, pool_timeout = 10)
     application.run_polling(allowed_updates = Update.ALL_TYPES, poll_interval = 0.1)
-    # updater.start_polling(poll_interval = 0.2)
 
 if __name__ == "__main__":
-    logging.info("Starting background thread…")
-    x = threading.Thread(target = subroutine, daemon = True)
-    x.start()
+    # logging.info("Starting background thread…")
+    # x = threading.Thread(target = subroutine, daemon = True)
+    # x.start()
     logging.info("Firing up bot…")
     main()
