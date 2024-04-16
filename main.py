@@ -60,7 +60,7 @@ BOT_USERNAME:   Final = '@TheTheologianBot'
 DATABASE:       Final = 'metanoia.db'
 HANDLER:        Final = bp(DATABASE)
 CLIENT = Application.chat_data
-MAIN_LOOP, CHOOSING_MENU, GROUP_REGISTER, PRAYING, = range(4)
+MAIN_LOOP, REGISTRATION, PRAYING, CHOOSING_MENU = range(4)
 OPER_KEYBOARD:  Final = [["CONTACT", "ORDER MATERIAL"], ["CONFERENCE",], ["PRAY FOR ME"]]
 
 # LOGGING
@@ -75,6 +75,11 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     chat_id       = update.effective_chat.id
     logging.debug(f'\n\n\n/start has been triggered by {user_id} on {chat_id}!')
     if(user_id != chat_id):
+        if(not context.bot.can_read_all_group_messages):
+            logging.error(f'\n\n\nGroup {chat_id} has no permissions to read messages! Informing {user_id}')
+            await update.effective_chat.send_message("(Lack Permissions) I don't have permission to see this group's messages! Please ensure I have permissions in the settings bar of this group!")
+            return MAIN_LOOP
+
         # Get the member count
         await update.effective_chat.send_action(constants.ChatAction.TYPING)
         members = await update.effective_chat.get_member_count() - 1
@@ -85,11 +90,12 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
             await update.effective_chat.send_message("(Welcome message) Beginning registry… I need everyone to send me a message to register you!")
             logging.debug(f'\n\n\nRegistering {chat_id} with {members} member(s)!')
             HANDLER.insert_chat(chat_id, members)
-            return GROUP_REGISTER
+            logging.debug(f'\n\n\nSuccesful registration of {chat_id} with {members} member(s)! returning to REGISTRATION')
         except IntegrityError as i:
-            logging.warn(f'\n\n\nIntegrityError for {chat_id} has been triggered!')
+            logging.warning(f'\n\n\nIntegrityError for {chat_id} has been triggered!')
             await update.effective_chat.send_message("(Chat_already_registered) Looks like you triggered /start in a registered chat! Going back to read updates.")
-            return MAIN_LOOP
+        logging.debug(f'\n\n\nSuccesful exit from try/catch sequence, returning to REGISTRATION')
+        return REGISTRATION
     else:
         await update.message.reply_text("(Welcome message) TODO",
                                         reply_markup = ReplyKeyboardMarkup(OPER_KEYBOARD,
@@ -147,7 +153,7 @@ async def register(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
         await update.effective_chat.send_message(f"(Lacking_Connections) I still lack {users_left} to connect with me! I can't update this chat until everyone is registered, please introduce yourselves to me!")
     except Exception as e:
         raise
-    return GROUP_REGISTER
+    return REGISTRATION
 
 async def update_chat(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     chat_id = update.effective_chat.id
@@ -225,13 +231,13 @@ def main() -> None:
                         CommandHandler("pray", pray),
                         CommandHandler("run", run_operator)],
         states = {MAIN_LOOP: [MessageHandler(None, update_chat)],
+                  REGISTRATION: [MessageHandler(None, register)],
+                  PRAYING: [MessageHandler(None, pray)],
                   CHOOSING_MENU: [MessageHandler(filters.Regex("CONTACT"),        contact),
                                   MessageHandler(filters.Regex("ORDER MATERIAL"), order_material),
                                   MessageHandler(filters.Regex("CONFERENCE"),     conference),
                                   MessageHandler(filters.Regex("PRAY FOR ME"),    pray),
-                                  MessageHandler(None,                            start)],
-                  GROUP_REGISTER: [MessageHandler(None, register)],
-                  PRAYING: []},
+                                  MessageHandler(None,                            start)]},
         fallbacks = [CommandHandler("stop", error)],
         allow_reentry = True
     )
