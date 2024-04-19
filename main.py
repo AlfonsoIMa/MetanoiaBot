@@ -64,11 +64,14 @@ MAIN_LOOP, REGISTRATION, PRAYING, CHOOSING_MENU = range(4)
 OPER_KEYBOARD:  Final = [["CONTACT", "ORDER MATERIAL"], ["CONFERENCE",], ["PRAY FOR ME"]]
 
 # LOGGING
-logging.basicConfig(format="MAIN APP - %(asctime)s - %(name)s - %(levelname)s - %(message)s", level=logging.DEBUG)
+logging.basicConfig(format="MAIN APP - %(asctime)s - %(name)s - %(levelname)s - %(message)s", level=logging.INFO)
 logging.getLogger("httpx")
 logger = logging.getLogger(__name__)
 
-# TODO - Implement
+# Thread subroutine - Deprecated
+# def subroutine():
+    
+
 # Proper bot implementations
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     user_id       = update.effective_user.id
@@ -153,18 +156,20 @@ async def register(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
         await update.effective_chat.send_message(f"(Lacking_Connections) I still lack {users_left} to connect with me! I can't update this chat until everyone is registered, please introduce yourselves to me!")
     except Exception as e:
         raise
+    logging.debug(f'\n\n\nSuccesful exit from try/catch sequence, returning to REGISTRATION')
     return REGISTRATION
 
+# TODO - Streak counter
 async def update_chat(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     chat_id = update.effective_chat.id
     user_id = update.effective_user.id
-    logging.debug(f"\n\n\nReading updates from: {user_id}")
+    logging.debug(f"Reading updates from: {user_id}\n\n\n")
     if(chat_id != user_id):
-        logging.debug(f"Method update_chat() triggered on chat {chat_id}!")
+        logging.debug(f"Method update_chat() triggered on chat {chat_id}!\n\n\n")
         try:
-            logging.debug(f"Attempting updating activeness for {user_id}")
+            logging.debug(f"Attempting updating activeness for {user_id}\n\n\n")
             HANDLER.update_user_activeness_today(user_id, chat_id)
-            logging.debug("Activenness today updated")
+            logging.info(f"Activenness for {user_id} today updated\n\n\n")
             updated = HANDLER.update_connections_status(chat_id)
             if(updated):
                 logging.info(f"All connections updated for {chat_id}")
@@ -172,7 +177,7 @@ async def update_chat(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int
             logging.error(e.with_traceback)
             raise
     else:
-        logging.debug("\n\n\nMethod update_chat() triggered on personal chat… Ignoring…")
+        logging.debug("Method update_chat() triggered on personal chat… Ignoring…\n\n\n")
     return MAIN_LOOP
 
 # OPERATOR COMMAND - Subroutines and logical implementations
@@ -182,7 +187,7 @@ async def run_operator(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
         logging.error(f'User {user_id} tried to trigger /run without operator permissions!')
         return MAIN_LOOP
     else:
-        await update.effective_user.send_message("Running master command…")
+        await update.effective_chat.send_message("Running master command…")
         # Setting all connections to False to read from today
         logging.info("Resetting all activeness to False on all chats!")
         today           = date.today().strftime('%Y-%m-%d')
@@ -200,10 +205,16 @@ async def run_operator(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
             days_passed = days_between(row_fetched[2], today)
             if(days_passed in range(3, 7)):
                 HANDLER.update_chat(row_fetched[0], 1)
+                await context.bot.send_message(chat_id = row_fetched[0], text = "3-7 days inactive")
             elif(days_passed in range(8, 15)):
-                pass
+                HANDLER.update_chat(row_fetched[0], 2)
+                await context.bot.send_message(chat_id = row_fetched[0], text = "8-15 days inactive")
             elif(days_passed in range(16, 29)):
-                HANDLER.update_chat(row_fetched[0], 2) 
+                HANDLER.update_chat(row_fetched[0], 3)
+                await context.bot.send_message(chat_id = row_fetched[0], text = "16-29 days inactive")
+            else:
+                HANDLER.update_chat(row_fetched[0], 4) 
+                await context.bot.send_message(chat_id = row_fetched[0], text = "30+ days inactive, closing chat")
 
             # All active chats set to 1
             if(row_fetched[2] == 0):
@@ -213,7 +224,7 @@ async def run_operator(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
         logging.info("All activeness set to False on all chats!")
 
         logging.info("Succesfully reset dates")
-        time.sleep(50) # 86400 is one whole day
+        # time.sleep(50) 86400 is one whole day
     return MAIN_LOOP
 
 def days_between(dateOne: str, dateTwo: str) -> int:
@@ -239,16 +250,18 @@ def main() -> None:
                                   MessageHandler(filters.Regex("PRAY FOR ME"),    pray),
                                   MessageHandler(None,                            start)]},
         fallbacks = [CommandHandler("stop", error)],
-        allow_reentry = True
+        allow_reentry = True,
+        per_user = False
     )
-    application = Application.builder().token(TOKEN).concurrent_updates(True).pool_timeout(350).connection_pool_size(700).build()
+    # As noted per API "When using this handler, telegram.ext.ApplicationBuilder.concurrent_updates should be set to False"
+    application = Application.builder().token(TOKEN).concurrent_updates(False).pool_timeout(350).connection_pool_size(700).build()
     application.add_handler(convStart)
     application.add_error_handler(error)
     application.run_polling(allowed_updates = Update.ALL_TYPES, poll_interval = 0.1)
 
 if __name__ == "__main__":
-    # logging.info("Starting background thread…")
-    # x = threading.Thread(target = subroutine, daemon = True)
-    # x.start()
+    #logging.info("Starting background thread…")
+    #x = threading.Thread(target = subroutine, daemon = True)
+    #x.start()
     logging.info("Firing up bot…")
     main()

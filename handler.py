@@ -21,7 +21,6 @@ class BotParser():
     - DATE IS FORMATED YYYY-MM-DD
     """
 
-    # TODO - Useful?
     def number_of_users(self, including_linked = False) -> int:
         query = " WHERE status = 0;"
         q_result = self.cursor.execute("SELECT COUNT(id) FROM users" + (query if including_linked else ";"))
@@ -37,17 +36,15 @@ class BotParser():
         q_result = q_result.fetchall()
         return q_result[0][0]
     
-    # TODO - Useful?
     def return_chats(self, discriminate = False, desired_status = 0) -> list:
         query = f" AND status = {desired_status};"
-        q_result = self.cursor.execute("SELECT * FROM chats WHERE status <> 3" + (query if discriminate else ";"))
+        q_result = self.cursor.execute("SELECT * FROM chats WHERE status <> 4" + (query if discriminate else ";"))
         return q_result.fetchall()
     
     def return_connections(self, discriminate = False, desired_status = 0) -> list:
         query = f" AND status = {desired_status};"
         q_result = self.cursor.execute("SELECT * FROM connections WHERE status <> 3" + (query if discriminate else ";"))
         return q_result.fetchall()
-
 
     # TODO - Change
     def return_users(self, field: str = 'user_id', discriminate = False, desired_status: int = -1, desired_gender: int = -1) -> list:
@@ -72,13 +69,12 @@ class BotParser():
             return True
         except sqlite3.IntegrityError as e:
             return False
-
+    
     def insert_chat(self, chat_id: int, member_count: int) -> bool:
         self.cursor.execute("INSERT INTO chats VALUES (?, ?, ?, ?, ?)", (chat_id, self.TODAY.strftime('%Y-%m-%d'), self.TODAY.strftime('%Y-%m-%d'), member_count, -1))
         self.connection.commit()
         return True
 
-    # TODO - Modified. Confirm it works.
     def insert_connection(self, user_id: int, chat_id: int) -> bool:
         self.cursor.execute("INSERT INTO connections (chat_id, user_id, date_creation, date_updated, status) VALUES (?, ?, ?, ?, ?);", (chat_id, user_id, self.TODAY.strftime('%Y-%m-%d'), self.TODAY.strftime('%Y-%m-%d'), 1))
         self.update_user_status(user_id, 1)
@@ -95,7 +91,6 @@ class BotParser():
         q_result = q_result.fetchall()
         return q_result[0][0]
 
-    # TODO - Confirm it works.
     def is_in_connection(self, user_id: int, chat_id: int) -> bool:
         q_result = self.cursor.execute("SELECT connection_id FROM connections WHERE user_id = ? AND chat_id = ?;", (user_id, chat_id,))
         q_result = q_result.fetchall()
