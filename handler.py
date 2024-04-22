@@ -3,8 +3,11 @@ import sqlite3, logging
 
 class BotParser():
     def __init__(self, DATABASE: str):
-        self.ID_COUNTER  = 0
+        # Status Constants
+        self.CONNECTING, self.UPDATED, self.INACTIVE_ONE_WEEK, self.INACTIVE_TWO_WEEKS, self.INACTIVE_THREE_WEKS, self.CLOSED = range(-1, 5)
+        # TODO - Date Constant
         self.TODAY       = date.today()
+        # Database
         self.connection  = sqlite3.connect(DATABASE, check_same_thread = False)
         self.cursor      = self.connection.cursor()
 
@@ -58,7 +61,7 @@ class BotParser():
         return q_result
 
     def return_users_in_connections(self, chat_id: int) -> list:
-        q_result = self.cursor.execute("SELECT user_id FROM connections WHERE chat_id = ?;", (chat_id,))
+        q_result = self.cursor.execute("SELECT user_id FROM connections WHERE chat_id = ? AND status <> 3;", (chat_id,))
         q_result = q_result.fetchall()
         return q_result
 
@@ -123,8 +126,18 @@ class BotParser():
         except Exception as e:
             raise
 
+    def update_user_in_connection(self, chat_id: int, user_id: int, status: int = 0) -> bool:
+        q_result = self.cursor.execute("UPDATE connections SET status = ? WHERE chat_id = ? AND user_id = ?;", (status, chat_id, user_id))
+        self.connection.commit()
+        return True
+
     def update_chat(self, chat_id: int, status: int = 0) -> bool:
         q_result = self.cursor.execute("UPDATE chats SET status = ? WHERE chat_id = ?;", (status, chat_id))
+        self.connection.commit()
+        return True
+
+    def update_chat_members(self, chat_id: int, new_number: int = 0) -> bool:
+        q_result = self.cursor.execute("UPDATE chats SET member_count = ? WHERE chat_id = ?;", (new_number, chat_id))
         self.connection.commit()
         return True
 

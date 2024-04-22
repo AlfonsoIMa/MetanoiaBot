@@ -47,6 +47,7 @@ from telegram.ext import (
     Application,
     CommandHandler,
     ContextTypes,
+    ChatMemberHandler,
     ConversationHandler,
     MessageHandler,
     filters,
@@ -64,7 +65,7 @@ MAIN_LOOP, REGISTRATION, PRAYING, CHOOSING_MENU = range(4)
 OPER_KEYBOARD:  Final = [["CONTACT", "ORDER MATERIAL"], ["CONFERENCE",], ["PRAY FOR ME"]]
 
 # LOGGING
-logging.basicConfig(format="MAIN APP - %(asctime)s - %(name)s - %(levelname)s - %(message)s", level=logging.INFO)
+logging.basicConfig(format="MAIN APP - %(asctime)s - %(name)s - %(levelname)s - %(message)s", level=logging.DEBUG)
 logging.getLogger("httpx")
 logger = logging.getLogger(__name__)
 
@@ -75,32 +76,33 @@ logger = logging.getLogger(__name__)
 # Proper bot implementations
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     user_id       = update.effective_user.id
+    user_username = update.effective_user.username
     chat_id       = update.effective_chat.id
     logging.debug(f'\n\n\n/start has been triggered by {user_id} on {chat_id}!')
     if(user_id != chat_id):
         if(not context.bot.can_read_all_group_messages):
-            logging.error(f'\n\n\nGroup {chat_id} has no permissions to read messages! Informing {user_id}')
+            logging.error(f'Group {chat_id} has no permissions to read messages! Informing {user_id}')
             await update.effective_chat.send_message("(Lack Permissions) I don't have permission to see this group's messages! Please ensure I have permissions in the settings bar of this group!")
             return MAIN_LOOP
 
         # Get the member count
         await update.effective_chat.send_action(constants.ChatAction.TYPING)
         members = await update.effective_chat.get_member_count() - 1
-        logging.debug(f'\n\n\nGroup {chat_id} has {members} member(s)!')
+        logging.debug(f'Group {chat_id} has {members} member(s)!\n\n\n')
         
         # Register the chat
         try:
-            await update.effective_chat.send_message("(Welcome message) Beginning registry… I need everyone to send me a message to register you!")
-            logging.debug(f'\n\n\nRegistering {chat_id} with {members} member(s)!')
+            await update.effective_chat.send_message("Um euch zu registrieren, müsst ihr mir einfach beide eine Nachricht schreiben!")
+            logging.debug(f'Registering {chat_id} with {members} member(s)!\n\n\n')
             HANDLER.insert_chat(chat_id, members)
-            logging.debug(f'\n\n\nSuccesful registration of {chat_id} with {members} member(s)! returning to REGISTRATION')
+            logging.debug(f'Succesful registration of {chat_id} with {members} member(s)! returning to REGISTRATION\n\n\n')
         except IntegrityError as i:
-            logging.warning(f'\n\n\nIntegrityError for {chat_id} has been triggered!')
+            logging.warning(f'IntegrityError for {chat_id} has been triggered! Defaulting to Registration for confirmation.')
             await update.effective_chat.send_message("(Chat_already_registered) Looks like you triggered /start in a registered chat! Going back to read updates.")
         logging.debug(f'\n\n\nSuccesful exit from try/catch sequence, returning to REGISTRATION')
         return REGISTRATION
     else:
-        await update.message.reply_text("(Welcome message) TODO",
+        await update.message.reply_text(f"Hey {user_username} schön, dass Du dabei bist. Ich freue mich auf die verändernde Reise der Nachfolge Jesu!",
                                         reply_markup = ReplyKeyboardMarkup(OPER_KEYBOARD,
                                                                            input_field_placeholder = "CHOOSE AN OPTION",
                                                                            resize_keyboard = True))
@@ -132,11 +134,11 @@ async def register(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     user_id       = update.effective_user.id
     user_username = update.effective_user.username
     chat_id       = update.effective_chat.id
-    logging.debug(f"\n\n\nVerifying: {user_username}")
+    logging.debug(f"Verifying: {user_username}\n\n\n")
     try:
         # Register the user if it's the first time interacting with the bot
         if(not HANDLER.is_user(user_id)):
-            await update.effective_chat.send_message(f"(New_User) It's a pleasure to meet you {user_username}, recording you into the database!")
+            await update.effective_chat.send_message(f"Willkommen, schön, dass DU {user_username} dabei bist. Ich füge dich dem metanoia-Herzschlag hinzu")
             HANDLER.insert_user(user_id, user_username)
         
         # Link user with the connection if it's not already
@@ -147,19 +149,18 @@ async def register(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
         connections   = HANDLER.return_users_in_connections(chat_id)
         member_count  = HANDLER.return_chat_member_count(chat_id)
         users_left    = member_count - len(connections)
-        logging.debug(f'connections: {connections}')
-        logging.debug(f'member_count: {member_count}')
+        logging.debug(f'connections: {connections}; member_count: {member_count}')
         if(users_left == 0):
             await update.effective_chat.send_message(f"(All_Users_Ready) We're all set, let's start praying and reading together!")
             HANDLER.update_chat(chat_id, 0)
             return MAIN_LOOP
-        await update.effective_chat.send_message(f"(Lacking_Connections) I still lack {users_left} to connect with me! I can't update this chat until everyone is registered, please introduce yourselves to me!")
+        # Missing n connections
+        await update.effective_chat.send_message(f"Ich habe noch keinen Jüngerschaftspartner für dich gefunden. Stell mich bitte deinem Partner vor.")
     except Exception as e:
         raise
-    logging.debug(f'\n\n\nSuccesful exit from try/catch sequence, returning to REGISTRATION')
     return REGISTRATION
 
-# TODO - Streak counter
+# TODO - Streak counter;
 async def update_chat(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     chat_id = update.effective_chat.id
     user_id = update.effective_user.id
@@ -169,7 +170,7 @@ async def update_chat(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int
         try:
             logging.debug(f"Attempting updating activeness for {user_id}\n\n\n")
             HANDLER.update_user_activeness_today(user_id, chat_id)
-            logging.info(f"Activenness for {user_id} today updated\n\n\n")
+            logging.info(f"Activenness for {user_id} today updated")
             updated = HANDLER.update_connections_status(chat_id)
             if(updated):
                 logging.info(f"All connections updated for {chat_id}")
@@ -180,7 +181,44 @@ async def update_chat(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int
         logging.debug("Method update_chat() triggered on personal chat… Ignoring…\n\n\n")
     return MAIN_LOOP
 
-# OPERATOR COMMAND - Subroutines and logical implementations
+async def update_members(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    chat_id = update.effective_chat.id
+    logging.debug(f'Member count change for {chat_id}\n\n\n')
+    members = await update.effective_chat.get_member_count() - 1
+    if(members):
+        logging.debug(f'Member updates for {chat_id}\n\n\n')
+        members_registered = HANDLER.return_chat_member_count(chat_id)
+        
+        # Updating member_count in database
+        HANDLER.update_chat_members(chat_id, members)
+        if(members > members_registered):
+            # A user joined, performing registration
+            for user in update.message.new_chat_members:
+                user_id = user.id
+            
+                if(HANDLER.is_in_connection(user_id, chat_id)):
+                    logging.info(f'{user_id} rejoined {chat_id}, updating status!')
+                    HANDLER.update_user_activeness_today(user_id, chat_id)
+                    HANDLER.update_user_in_connection(chat_id, user_id, HANDLER.UPDATED)
+                else:
+                    logging.info(f'New member {user_id} on {chat_id}, performing registration')
+                    HANDLER.insert_connection(user_id, chat_id)
+        elif(members < members_registered):
+            for user in update.message.left_chat_member:
+                # A user left, changing connection status to closed
+                user_id = update.message.left_chat_member.id
+                logging.info(f'{user_id} left {chat_id}, updating status')
+                HANDLER.update_user_in_connection(chat_id, user_id, HANDLER.CLOSED)
+        else:
+            await update.effective_chat.send_message("Did someone join or leave?")
+    else:
+        logging.info(f'No more members on {chat_id}, exitting chat')
+        # All users have left the chat, deleiting registries
+        HANLDER.update_connections_status(chat_id, HANDLER.CLOSED)
+        HANDLER.update_chat(chat_id, HANDLER.CLOSED)
+    return MAIN_LOOP
+
+#  OPERATOR COMMAND - Subroutines and logical implementations
 async def run_operator(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     user_id = update.effective_user.id
     if(not HANDLER.is_administrator(user_id)): # and user_id != update.effective_chat.id):
@@ -204,17 +242,19 @@ async def run_operator(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
             # Update status on old chats based on date and send message accordingly
             days_passed = days_between(row_fetched[2], today)
             if(days_passed in range(3, 7)):
-                HANDLER.update_chat(row_fetched[0], 1)
+                HANDLER.update_chat(row_fetched[0], HANDLER.INACTIVE_ONE_WEEK)
                 await context.bot.send_message(chat_id = row_fetched[0], text = "3-7 days inactive")
             elif(days_passed in range(8, 15)):
-                HANDLER.update_chat(row_fetched[0], 2)
+                HANDLER.update_chat(row_fetched[0], HANDLER.INACTIVE_TWO_WEEKS)
                 await context.bot.send_message(chat_id = row_fetched[0], text = "8-15 days inactive")
             elif(days_passed in range(16, 29)):
-                HANDLER.update_chat(row_fetched[0], 3)
+                HANDLER.update_chat(row_fetched[0], HANDLER.INACTIVE_THREE_WEKS)
                 await context.bot.send_message(chat_id = row_fetched[0], text = "16-29 days inactive")
             else:
-                HANDLER.update_chat(row_fetched[0], 4) 
+                HANDLER.update_chat(row_fetched[0], HANDLER.CLOSED) 
+                HANLDER.update_connections_status(row_fetched[0], HANDLER.CLOSED)
                 await context.bot.send_message(chat_id = row_fetched[0], text = "30+ days inactive, closing chat")
+                await context.bot.leave_chat(row_fetched[0])
 
             # All active chats set to 1
             if(row_fetched[2] == 0):
@@ -224,7 +264,6 @@ async def run_operator(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
         logging.info("All activeness set to False on all chats!")
 
         logging.info("Succesfully reset dates")
-        # time.sleep(50) 86400 is one whole day
     return MAIN_LOOP
 
 def days_between(dateOne: str, dateTwo: str) -> int:
@@ -241,7 +280,9 @@ def main() -> None:
         entry_points = [CommandHandler("start", start),
                         CommandHandler("pray", pray),
                         CommandHandler("run", run_operator)],
-        states = {MAIN_LOOP: [MessageHandler(None, update_chat)],
+        states = {MAIN_LOOP: [MessageHandler(filters.TEXT,                          update_chat)],
+                              MessageHandler(filters.StatusUpdate.NEW_CHAT_MEMBERS, update_members),
+                              MessageHandler(filters.StatusUpdate.LEFT_CHAT_MEMBER, update_members)]
                   REGISTRATION: [MessageHandler(None, register)],
                   PRAYING: [MessageHandler(None, pray)],
                   CHOOSING_MENU: [MessageHandler(filters.Regex("CONTACT"),        contact),
