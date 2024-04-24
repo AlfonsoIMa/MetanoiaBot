@@ -17,6 +17,7 @@ CREATE TABLE IF NOT EXISTS chats
     date_joined     TEXT,
     date_updated    TEXT,
     member_count    INTEGER,
+    streak          INTEGER,
     status          INTEGER
 );
 CREATE TABLE IF NOT EXISTS connections

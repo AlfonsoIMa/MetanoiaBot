@@ -44,10 +44,20 @@ class BotParser():
         q_result = self.cursor.execute("SELECT * FROM chats WHERE status <> 4" + (query if discriminate else ";"))
         return q_result.fetchall()
     
+    def return_chat_status(self, chat_id: int) -> :
+        query = f" AND status = {desired_status};"
+        q_result = self.cursor.execute("SELECT * FROM chats WHERE status <> 4" + (query if discriminate else ";"))
+        return q_result.fetchall()
+    
     def return_connections(self, discriminate = False, desired_status = 0) -> list:
         query = f" AND status = {desired_status};"
         q_result = self.cursor.execute("SELECT * FROM connections WHERE status <> 3" + (query if discriminate else ";"))
         return q_result.fetchall()
+
+    def return_current_status_on_chat(self, chat_id: int) -> int:
+        query = self.cursor.execute("SELECT status FROM chats WHERE chat_id = ?", (chat_id,))
+        query = query.fetchall()
+        return 1 if query[0][0] == 0 else 0
 
     # TODO - Change
     def return_users(self, field: str = 'user_id', discriminate = False, desired_status: int = -1, desired_gender: int = -1) -> list:
@@ -74,7 +84,7 @@ class BotParser():
             return False
     
     def insert_chat(self, chat_id: int, member_count: int) -> bool:
-        self.cursor.execute("INSERT INTO chats VALUES (?, ?, ?, ?, ?)", (chat_id, self.TODAY.strftime('%Y-%m-%d'), self.TODAY.strftime('%Y-%m-%d'), member_count, -1))
+        self.cursor.execute("INSERT INTO chats VALUES (?, ?, ?, ?, ?, ?)", (chat_id, self.TODAY.strftime('%Y-%m-%d'), self.TODAY.strftime('%Y-%m-%d'), member_count, 0, -1))
         self.connection.commit()
         return True
 
@@ -105,14 +115,23 @@ class BotParser():
         q_result = self.cursor.execute("SELECT date_updated FROM connections WHERE user_id = ?;", (user_id,))
         q_result = q_result.fetchall()
         for row in q_result:
-            if(row[0] == self.TODAY.strftime('%Y-%m-%d')):
+            if(row[0] == date.today().strftime('%Y-%m-%d')):
                 return True
         return False
-    
+   
+    # TODO - Reset streak
+    def update_chat_streak(self, chat_id: int) -> int:
+        null     = self.cursor.execute("UPDATE chats SET streak = (SELECT streak FROM chats WHERE chat_id = ?) + 1 WHERE chat_id = ?", (chat_id, chat_id))
+        self.connection.commit()
+        q_result = self.cursor.execute("SELECT streak FROM chats WHERE chat_id = ?;", (chat_id,)) 
+        q_result = q_result.fetchall()
+        return q_result[0][0]
+
     def update_user_activeness_today(self, user_id: int, chat_id: int) -> bool:
         try:
-            today = self.TODAY.strftime('%Y-%m-%d')
+            today = date.today().strftime('%Y-%m-%d')
             q_result = self.cursor.execute("UPDATE connections SET date_updated = ? WHERE user_id = ? AND chat_id = ?;", (today,  user_id, chat_id))
+            q_result = self.cursor.execute("UPDATE connections SET status = ? WHERE user_id = ? AND chat_id = ?;", (0,  user_id, chat_id))
             self.connection.commit()
             return True
         except Exception as e:
@@ -152,7 +171,7 @@ class BotParser():
                 if(all_active_today):
                     q_result = self.cursor.execute("UPDATE chats SET status = 0 WHERE chat_id = ?;", (chat_id, ))
                     q_result = self.cursor.execute("UPDATE connections SET status = 0 WHERE chat_id = ?;", (chat_id, ))
-                    q_result = self.cursor.execute("UPDATE connections SET date_updated = ? WHERE chat_id = ?;", (self.TODAY.strftime('%y%m%d'), chat_id))
+                    q_result = self.cursor.execute("UPDATE connections SET date_updated = ? WHERE chat_id = ?;", (date.today().strftime('%y%m%d'), chat_id))
                     self.connection.commit()
                 return all_active_today
             else: 

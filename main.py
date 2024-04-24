@@ -171,9 +171,13 @@ async def update_chat(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int
             logging.debug(f"Attempting updating activeness for {user_id}\n\n\n")
             HANDLER.update_user_activeness_today(user_id, chat_id)
             logging.info(f"Activenness for {user_id} today updated")
-            updated = HANDLER.update_connections_status(chat_id)
+            first_pass  = HANDLER.return_current_status_on_chat(chat_id)
+            updated     = HANDLER.update_connections_status(chat_id)
             if(updated):
                 logging.info(f"All connections updated for {chat_id}")
+                if(first_pass):
+                    await update.effective_chat.send_message("(Chat updated today) TODO")
+                    HANDLER.
         except Exception as e:
             logging.error(e.with_traceback)
             raise
@@ -221,7 +225,7 @@ async def update_members(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
 #  OPERATOR COMMAND - Subroutines and logical implementations
 async def run_operator(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     user_id = update.effective_user.id
-    if(not HANDLER.is_administrator(user_id)): # and user_id != update.effective_chat.id):
+    if(not HANDLER.is_administrator(user_id) and user_id != update.effective_chat.id):
         logging.error(f'User {user_id} tried to trigger /run without operator permissions!')
         return MAIN_LOOP
     else:
@@ -241,26 +245,27 @@ async def run_operator(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
         for row_fetched in all_chats:
             # Update status on old chats based on date and send message accordingly
             days_passed = days_between(row_fetched[2], today)
+            chat_id = row_fetched[0]
             if(days_passed in range(3, 7)):
-                HANDLER.update_chat(row_fetched[0], HANDLER.INACTIVE_ONE_WEEK)
-                await context.bot.send_message(chat_id = row_fetched[0], text = "3-7 days inactive")
+                HANDLER.update_chat(chat_id, HANDLER.INACTIVE_ONE_WEEK)
+                await context.bot.send_message(chat_id = chat_id, text = "3-7 days inactive")
             elif(days_passed in range(8, 15)):
-                HANDLER.update_chat(row_fetched[0], HANDLER.INACTIVE_TWO_WEEKS)
-                await context.bot.send_message(chat_id = row_fetched[0], text = "8-15 days inactive")
+                HANDLER.update_chat(chat_id, HANDLER.INACTIVE_TWO_WEEKS)
+                await context.bot.send_message(chat_id = chat_id, text = "8-15 days inactive")
             elif(days_passed in range(16, 29)):
-                HANDLER.update_chat(row_fetched[0], HANDLER.INACTIVE_THREE_WEKS)
-                await context.bot.send_message(chat_id = row_fetched[0], text = "16-29 days inactive")
+                HANDLER.update_chat(chat_id, HANDLER.INACTIVE_THREE_WEKS)
+                await context.bot.send_message(chat_id = chat_id, text = "16-29 days inactive")
             else:
-                HANDLER.update_chat(row_fetched[0], HANDLER.CLOSED) 
-                HANLDER.update_connections_status(row_fetched[0], HANDLER.CLOSED)
-                await context.bot.send_message(chat_id = row_fetched[0], text = "30+ days inactive, closing chat")
-                await context.bot.leave_chat(row_fetched[0])
+                HANDLER.update_chat(chat_id, HANDLER.CLOSED) 
+                HANLDER.update_connections_status(chat_id, HANDLER.CLOSED)
+                await context.bot.send_message(chat_id = chat_id, text = "30+ days inactive, closing chat")
+                await context.bot.leave_chat(chat_id)
 
             # All active chats set to 1
-            if(row_fetched[2] == 0):
-                HANDLER.update_chats(row_fetched[0], 1)
+            if(row_fetched[5] == 0):
+                HANDLER.update_chats(chat_id, 1)
 
-            logging.debug(f'Updated {row_fetched[1]}:{row_fetched[2]} to status INACTIVE for today')
+            logging.debug(f'Updated {row_fetched[0]}:{row_fetched[5]} to status INACTIVE for today')
         logging.info("All activeness set to False on all chats!")
 
         logging.info("Succesfully reset dates")
