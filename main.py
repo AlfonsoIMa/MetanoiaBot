@@ -37,10 +37,11 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SO
         - should give the opportunity to order new materials, register for coming events and so on. 
 """
 
-import logging, threading, time, re
+import logging, threading, time, re, os
 from datetime import date, datetime
 from handler import BotParser as bp
 from sqlite3 import IntegrityError
+from tabulate import tabulate
 from typing import Final
 from telegram import ReplyKeyboardMarkup, ReplyKeyboardRemove, ChatInviteLink, Update, constants
 from telegram.ext import (
@@ -92,13 +93,13 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
         
         # Register the chat
         try:
-            await update.effective_chat.send_message("Um euch zu registrieren, müsst ihr mir einfach beide eine Nachricht schreiben!")
+            await update.effective_chat.send_message(f"Hey {user_username} schön, dass Du dabei bist. Ich freue mich auf die gemeinsame Nachfolge Jesu!")
             logging.debug(f'Registering {chat_id} with {members} member(s)!\n\n\n')
             HANDLER.insert_chat(chat_id, members)
             logging.debug(f'Succesful registration of {chat_id} with {members} member(s)! returning to REGISTRATION\n\n\n')
         except IntegrityError as i:
             logging.warning(f'IntegrityError for {chat_id} has been triggered! Defaulting to Registration for confirmation.')
-            await update.effective_chat.send_message("(Chat_already_registered) Looks like you triggered /start in a registered chat! Going back to read updates.")
+            await update.effective_chat.send_message("Es scheint, als hättet ihr den Chat mehrfach gestartet. Lasst uns schauen, ob alles in Ordnung ist. Schreibt beide mal eine Nachricht.")
         logging.debug(f'\n\n\nSuccesful exit from try/catch sequence, returning to REGISTRATION')
         return REGISTRATION
     else:
@@ -110,17 +111,17 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
 
 #User-based functions
 async def contact(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    await update.message.reply_text("Send us an email to info@metanoia\-movement\.org\n\n[Send it now\!](info@metanoia-movement.org)",
+    await update.message.reply_text("Du hast Fragen oder Vorschläge? Schreib uns einfach eine info@metanoia\-movement\.org",
                                     reply_markup = ReplyKeyboardMarkup(OPER_KEYBOARD, input_field_placeholder = "CHOOSE AN OPTION", resize_keyboard = True), disable_web_page_preview = False, parse_mode = "MarkdownV2")
     return CHOOSING_MENU
 
 async def order_material(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    await update.message.reply_text("You can order\n\n\- Bibel Journal\n\- Themenheft\n\- Geben\n\- Gehen\n\- Beten\n\nYou can order them by [writing to us](info@metanoia-movement.org)\.",
+    await update.message.reply_text("Du benötigst neues metanoia-Material?\n\n\- Bibel Journal\n\- Themenheft\n\- Geben\n\- Gehen\n\- Beten\n\nSchreib uns was du brauchst und wir schicken es dir zu\. info@metanoia\-movement\.org",
                                     reply_markup = ReplyKeyboardMarkup(OPER_KEYBOARD, input_field_placeholder = "CHOOSE AN OPTION", resize_keyboard = True), disable_web_page_preview = False, parse_mode = "MarkdownV2")
     return CHOOSING_MENU
 
 async def conference(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    await update.message.reply_text("This is text of our conference\n\n[This is a link to our website](http://www.metanoia-movement.org)\n\n📍 «This is the place» [This is a link to a maps place](https://maps.app.goo.gl/hFNL1f8yySwLK1116)",
+    await update.message.reply_text("Für 2025 sind 4 lokale \"metanoia-Tage\" geplant\. 2026 wollen wir vom 24\.\-26\.April die dritte Konferenz feiern\.\n\n[metanoia-website](http://www.metanoia-movement.org)\n\n📍 «This is the place» [This is a link to a maps place](https://maps.app.goo.gl/hFNL1f8yySwLK1116)",
                                     reply_markup = ReplyKeyboardMarkup(OPER_KEYBOARD, input_field_placeholder = "CHOOSE AN OPTION", resize_keyboard = True), disable_web_page_preview = False, parse_mode = "MarkdownV2")
     return CHOOSING_MENU
 
@@ -151,8 +152,8 @@ async def register(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
         users_left    = member_count - len(connections)
         logging.debug(f'connections: {connections}; member_count: {member_count}')
         if(users_left == 0):
-            await update.effective_chat.send_message(f"(All_Users_Ready) We're all set, let's start praying and reading together!")
-            HANDLER.update_chat(chat_id, 0)
+            await update.effective_chat.send_message(f"Wir sind startklar! Lasst uns gemeinsam lesen und beten!")
+            HANDLER.update_chat(chat_id, 1)
             return MAIN_LOOP
         # Missing n connections
         await update.effective_chat.send_message(f"Ich habe noch keinen Jüngerschaftspartner für dich gefunden. Stell mich bitte deinem Partner vor.")
@@ -160,7 +161,6 @@ async def register(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
         raise
     return REGISTRATION
 
-# TODO - Streak counter;
 async def update_chat(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     chat_id = update.effective_chat.id
     user_id = update.effective_user.id
@@ -176,8 +176,8 @@ async def update_chat(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int
             if(updated):
                 logging.info(f"All connections updated for {chat_id}")
                 if(first_pass):
-                    await update.effective_chat.send_message("(Chat updated today) TODO")
-                    HANDLER.
+                    streak = HANDLER.update_chat_streak(chat_id)
+                    await update.effective_chat.send_message(f"Ihr seid schon {streak} Tage aktiv 👍 macht weiter so 🤝🙏")
         except Exception as e:
             logging.error(e.with_traceback)
             raise
@@ -219,56 +219,81 @@ async def update_members(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         logging.info(f'No more members on {chat_id}, exitting chat')
         # All users have left the chat, deleiting registries
         HANLDER.update_connections_status(chat_id, HANDLER.CLOSED)
-        HANDLER.update_chat(chat_id, HANDLER.CLOSED)
+        HANDLER.update_chat(chat_id, HANDLER.CLOSED) 
     return MAIN_LOOP
 
 #  OPERATOR COMMAND - Subroutines and logical implementations
 async def run_operator(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    user_id = update.effective_user.id
+    user_id   = update.effective_user.id
+    this_chat = update.effective_chat.id
     if(not HANDLER.is_administrator(user_id) and user_id != update.effective_chat.id):
         logging.error(f'User {user_id} tried to trigger /run without operator permissions!')
         return MAIN_LOOP
     else:
-        await update.effective_chat.send_message("Running master command…")
-        # Setting all connections to False to read from today
-        logging.info("Resetting all activeness to False on all chats!")
-        today           = date.today().strftime('%Y-%m-%d')
-        all_connections = HANDLER.return_connections(discriminate = True)
-        for row_fetched in all_connections:
-            # Update all active connections to 1
-            HANDLER.update_connections_status(row_fetched[1], 1)
-            logging.debug(f'Updated {row_fetched[1]}:{row_fetched[2]} to status INACTIVE for today')
-        logging.info("All activeness set to False on all chats!")
-    
-        # Set all chats to inactive
-        all_chats = HANDLER.return_chats() 
-        for row_fetched in all_chats:
-            # Update status on old chats based on date and send message accordingly
-            days_passed = days_between(row_fetched[2], today)
-            chat_id = row_fetched[0]
-            if(days_passed in range(3, 7)):
-                HANDLER.update_chat(chat_id, HANDLER.INACTIVE_ONE_WEEK)
-                await context.bot.send_message(chat_id = chat_id, text = "3-7 days inactive")
-            elif(days_passed in range(8, 15)):
-                HANDLER.update_chat(chat_id, HANDLER.INACTIVE_TWO_WEEKS)
-                await context.bot.send_message(chat_id = chat_id, text = "8-15 days inactive")
-            elif(days_passed in range(16, 29)):
-                HANDLER.update_chat(chat_id, HANDLER.INACTIVE_THREE_WEKS)
-                await context.bot.send_message(chat_id = chat_id, text = "16-29 days inactive")
-            else:
-                HANDLER.update_chat(chat_id, HANDLER.CLOSED) 
-                HANLDER.update_connections_status(chat_id, HANDLER.CLOSED)
-                await context.bot.send_message(chat_id = chat_id, text = "30+ days inactive, closing chat")
-                await context.bot.leave_chat(chat_id)
+        try:
+            await update.effective_chat.send_message("Running master command…")
+            # Setting all connections to False to read from today
+            logging.info("Resetting all activeness to False on all chats!")
+            today           = date.today().strftime('%Y-%m-%d')
+            all_connections = HANDLER.return_connections(discriminate = True)
+            for row_fetched in all_connections:
+                # Update all active connections to 1
+                HANDLER.update_connections_status(row_fetched[1], 1)
+                logging.debug(f'Updated {row_fetched[1]}:{row_fetched[2]} to status INACTIVE for today')
+            logging.info("All activeness set to False on all chats!")
+        except Exception as e:
+            await update.effective_chat.send_message('error in falseness in all chats')
 
-            # All active chats set to 1
-            if(row_fetched[5] == 0):
-                HANDLER.update_chats(chat_id, 1)
-
-            logging.debug(f'Updated {row_fetched[0]}:{row_fetched[5]} to status INACTIVE for today')
-        logging.info("All activeness set to False on all chats!")
-
-        logging.info("Succesfully reset dates")
+        try:
+            # Set all chats to inactive
+            all_chats = HANDLER.return_chats() 
+            for row_fetched in all_chats:
+                # Update status on old chats based on date and send message accordingly
+                days_passed = days_between(row_fetched[2], today)
+                chat_id = row_fetched[0]
+                if(days_passed in range(0, 2)):
+                   continue
+                elif(days_passed in range(3, 7)):
+                    HANDLER.update_chat(chat_id, HANDLER.INACTIVE_ONE_WEEK)
+                    await context.bot.send_message(chat_id = chat_id, text = "Hey! Es sieht so aus, als hättet ihr aktuell Schwierigkeiten. Ich will euch ermutigen, macht weiter - Es lohnt sich! 🙏🏼")
+                elif(days_passed in range(8, 15)):
+                    HANDLER.update_chat(chat_id, HANDLER.INACTIVE_TWO_WEEKS)
+                    await context.bot.send_message(chat_id = chat_id, text = "Hey! Ihr habt schon lange nichts mehr geteilt! Seid ihr noch unterwegs? Dann gebt hier doch mal wieder ein Update und startet wieder voll durch.")
+                elif(days_passed in range(16, 29)):
+                    HANDLER.update_chat(chat_id, HANDLER.INACTIVE_THREE_WEKS)
+                    await context.bot.send_message(chat_id = chat_id, text = "Es sieht so aus, als würdet ihr aktuell nicht mehr gemeinsam Lesen und beten…")
+                else:
+                    HANDLER.update_chat(chat_id, HANDLER.CLOSED) 
+                    HANDLER.update_connections_status(chat_id, HANDLER.CLOSED)
+                    await context.bot.send_message(chat_id = chat_id, text = "Leider sehe ich immer noch keine Aktivität. Daher sende ich euch keine Updates mehr. Wenn immer ihr wieder starten wollt, aktiviert mich einfach wieder und wir gehen gemeinsam wieder los")
+                    await context.bot.leave_chat(chat_id)
+                # All active chats set to 1
+                if(row_fetched[5] == 0):
+                    HANDLER.update_chat(chat_id, 1)
+                logging.debug(f'Updated {row_fetched[0]}:{row_fetched[5]} to status INACTIVE for today')
+            logging.info("All activeness set to False on all chats!")
+            logging.info("Succesfully reset dates")
+        except Exception as e:
+            await update.effective_chat.send_message('exception in messages')
+        finally:
+            # Sending results
+            users = HANDLER.return_user_count()[0][0]
+            chats = HANDLER.return_chats_by_streak()
+            t_chats = f"```Chats by streak\n{tabulate(chats, headers = ['Streak', 'No. of Chats'], tablefmt = 'grid')}```"
+            conns = HANDLER.return_connections_by_status()
+            t_conns = f"```Users(Connections) by status\n{tabulate(conns, headers = ['Status', 'No. of Users'], tablefmt = 'grid')}```"
+            with open('report.txt', 'w') as file:
+                # file.write(t_users)
+                file.write(t_chats)
+                file.write(t_conns)
+            with open('report.txt', 'rb') as file:
+                context.bot.send_document(chat_id = this_chat, document = file)
+            os.remove('report.txt')
+            await update.effective_chat.send_message('sending tables')
+            await update.effective_chat.send_message(f"I currently have {users} users registered!")
+            await update.effective_chat.send_message(t_chats, parse_mode = 'MarkdownV2')
+            await update.effective_chat.send_message(t_conns, parse_mode = 'MarkdownV2')
+            await update.effective_chat.send_message('tables sent')
     return MAIN_LOOP
 
 def days_between(dateOne: str, dateTwo: str) -> int:
@@ -285,9 +310,9 @@ def main() -> None:
         entry_points = [CommandHandler("start", start),
                         CommandHandler("pray", pray),
                         CommandHandler("run", run_operator)],
-        states = {MAIN_LOOP: [MessageHandler(filters.TEXT,                          update_chat)],
+        states = {MAIN_LOOP: [MessageHandler(filters.TEXT,                          update_chat),
                               MessageHandler(filters.StatusUpdate.NEW_CHAT_MEMBERS, update_members),
-                              MessageHandler(filters.StatusUpdate.LEFT_CHAT_MEMBER, update_members)]
+                              MessageHandler(filters.StatusUpdate.LEFT_CHAT_MEMBER, update_members)],
                   REGISTRATION: [MessageHandler(None, register)],
                   PRAYING: [MessageHandler(None, pray)],
                   CHOOSING_MENU: [MessageHandler(filters.Regex("CONTACT"),        contact),

@@ -44,31 +44,33 @@ class BotParser():
         q_result = self.cursor.execute("SELECT * FROM chats WHERE status <> 4" + (query if discriminate else ";"))
         return q_result.fetchall()
     
-    def return_chat_status(self, chat_id: int) -> :
-        query = f" AND status = {desired_status};"
-        q_result = self.cursor.execute("SELECT * FROM chats WHERE status <> 4" + (query if discriminate else ";"))
+    def return_chats_by_streak(self) -> list:
+        q_result = self.cursor.execute("SELECT streak, COUNT(*) FROM chats WHERE status <> 4 GROUP BY status;")
         return q_result.fetchall()
     
     def return_connections(self, discriminate = False, desired_status = 0) -> list:
         query = f" AND status = {desired_status};"
-        q_result = self.cursor.execute("SELECT * FROM connections WHERE status <> 3" + (query if discriminate else ";"))
+        q_result = self.cursor.execute("SELECT * FROM connections WHERE status <> 4" + (query if discriminate else ";"))
+        return q_result.fetchall()
+
+    def return_connections_by_status(self) -> list:
+        q_result = self.cursor.execute("SELECT status, COUNT(*) FROM connections WHERE status <> 4 GROUP BY status;")
         return q_result.fetchall()
 
     def return_current_status_on_chat(self, chat_id: int) -> int:
         query = self.cursor.execute("SELECT status FROM chats WHERE chat_id = ?", (chat_id,))
         query = query.fetchall()
-        return 1 if query[0][0] == 0 else 0
+        return query[0][0]
 
-    # TODO - Change
     def return_users(self, field: str = 'user_id', discriminate = False, desired_status: int = -1, desired_gender: int = -1) -> list:
-        query_status = f" status = {desired_status}"
-        query_gender = f" gender = {desired_gender}"
-        final_query = " WHERE"
-        final_query += query_status if discriminate and desired_status != -1 else ""
-        final_query += (" AND" if desired_status != -1 else "") + (query_gender if discriminate and desired_gender != -1 else "")
-        q_result = self.cursor.execute("SELECT ? FROM users" + (final_query if discriminate else "") + ";" , (field,))
+        query = f" AND status = {desired_status};"
+        q_result = self.cursor.execute("SELECT * FROM users WHERE status <> 4" + (query if discriminate else ";"))
         q_result = q_result.fetchall()
         return q_result
+
+    def return_user_count(self) -> list:
+        query = self.cursor.execute("SELECT COUNT(*) FROM users WHERE status <> 4;")
+        return query.fetchall()
 
     def return_users_in_connections(self, chat_id: int) -> list:
         q_result = self.cursor.execute("SELECT user_id FROM connections WHERE chat_id = ? AND status <> 3;", (chat_id,))
