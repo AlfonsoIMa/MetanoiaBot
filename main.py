@@ -93,7 +93,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
         
         # Register the chat
         try:
-            await update.effective_chat.send_message(f"Hey {user_username} schön, dass Du dabei bist. Ich freue mich auf die gemeinsame Nachfolge Jesu!")
+            await update.effective_chat.send_message(f"Hey {user_username} schön, dass Du dabei bist. Ich freue mich auf die gemeinsame Nachfolge Jesu! Schreib mir doch kurz eine Nachricht.")
             logging.debug(f'Registering {chat_id} with {members} member(s)!\n\n\n')
             HANDLER.insert_chat(chat_id, members)
             logging.debug(f'Succesful registration of {chat_id} with {members} member(s)! returning to REGISTRATION\n\n\n')
@@ -103,7 +103,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
         logging.debug(f'\n\n\nSuccesful exit from try/catch sequence, returning to REGISTRATION')
         return REGISTRATION
     else:
-        await update.message.reply_text(f"Hey {user_username} schön, dass Du dabei bist. Ich freue mich auf die verändernde Reise der Nachfolge Jesu!",
+        await update.message.reply_text(f"Hey {user_username} schön, dass Du dabei bist. Ich freue mich auf die verändernde Reise der Nachfolge Jesu! Schreib mir doch kurz eine Nachricht.",
                                         reply_markup = ReplyKeyboardMarkup(OPER_KEYBOARD,
                                                                            input_field_placeholder = "CHOOSE AN OPTION",
                                                                            resize_keyboard = True))
@@ -121,7 +121,7 @@ async def order_material(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     return CHOOSING_MENU
 
 async def conference(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    await update.message.reply_text("Für 2025 sind 4 lokale \"metanoia-Tage\" geplant\. 2026 wollen wir vom 24\.\-26\.April die dritte Konferenz feiern\.\n\n[metanoia-website](http://www.metanoia-movement.org)\n\n📍 «This is the place» [This is a link to a maps place](https://maps.app.goo.gl/hFNL1f8yySwLK1116)",
+    await update.message.reply_text("Für 2025 sind 4 lokale \"metanoia\-Tage\" geplant\. 2026 wollen wir vom 24\.\-26\.April die dritte Konferenz feiern\.\n\n[metanoia-website](http://www.metanoia-movement.org)",
                                     reply_markup = ReplyKeyboardMarkup(OPER_KEYBOARD, input_field_placeholder = "CHOOSE AN OPTION", resize_keyboard = True), disable_web_page_preview = False, parse_mode = "MarkdownV2")
     return CHOOSING_MENU
 
@@ -139,7 +139,7 @@ async def register(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     try:
         # Register the user if it's the first time interacting with the bot
         if(not HANDLER.is_user(user_id)):
-            await update.effective_chat.send_message(f"Willkommen, schön, dass DU {user_username} dabei bist. Ich füge dich dem metanoia-Herzschlag hinzu")
+            await update.effective_chat.send_message(f"{user_username} hat heute noch nichts geschrieben. Schick eine Erinnerung :)")
             HANDLER.insert_user(user_id, user_username)
         
         # Link user with the connection if it's not already
@@ -156,7 +156,7 @@ async def register(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
             HANDLER.update_chat(chat_id, 1)
             return MAIN_LOOP
         # Missing n connections
-        await update.effective_chat.send_message(f"Ich habe noch keinen Jüngerschaftspartner für dich gefunden. Stell mich bitte deinem Partner vor.")
+        await update.effective_chat.send_message(f"Dein Jüngerschaftspartner hat noch nichts geschrieben. Wenn er seinen Namen schreibt, sind wir startklar 😉.")
     except Exception as e:
         raise
     return REGISTRATION
