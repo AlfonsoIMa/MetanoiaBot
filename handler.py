@@ -57,10 +57,10 @@ class BotParser():
         q_result = self.cursor.execute("SELECT status, COUNT(*) FROM connections WHERE status <> 4 GROUP BY status;")
         return q_result.fetchall()
 
-    def return_current_status_on_chat(self, chat_id: int) -> int:
-        query = self.cursor.execute("SELECT status FROM chats WHERE chat_id = ?", (chat_id,))
+    def return_last_updated_date_on_chat(self, chat_id: int) -> int:
+        query = self.cursor.execute("SELECT date_updated FROM chats WHERE chat_id = ?", (chat_id,))
         query = query.fetchall()
-        return query[0][0]
+        return True if query[0][0] == date.today().strftime('%Y-%m-%d') else False
 
     def return_users(self, field: str = 'user_id', discriminate = False, desired_status: int = -1, desired_gender: int = -1) -> list:
         query = f" AND status = {desired_status};"
@@ -133,7 +133,7 @@ class BotParser():
         try:
             today = date.today().strftime('%Y-%m-%d')
             q_result = self.cursor.execute("UPDATE connections SET date_updated = ? WHERE user_id = ? AND chat_id = ?;", (today,  user_id, chat_id))
-            q_result = self.cursor.execute("UPDATE connections SET status = ? WHERE user_id = ? AND chat_id = ?;", (0,  user_id, chat_id))
+            q_result = self.cursor.execute("UPDATE connections SET status = 0 WHERE user_id = ? AND chat_id = ?;", (user_id, chat_id))
             self.connection.commit()
             return True
         except Exception as e:
@@ -172,6 +172,7 @@ class BotParser():
                         all_active_today = False
                 if(all_active_today):
                     q_result = self.cursor.execute("UPDATE chats SET status = 0 WHERE chat_id = ?;", (chat_id, ))
+                    q_result = self.cursor.execute("UPDATE chats SET date_updated = ? WHERE chat_id = ?;", (date.today().strftime('%y%m%d'), chat_id))
                     q_result = self.cursor.execute("UPDATE connections SET status = 0 WHERE chat_id = ?;", (chat_id, ))
                     q_result = self.cursor.execute("UPDATE connections SET date_updated = ? WHERE chat_id = ?;", (date.today().strftime('%y%m%d'), chat_id))
                     self.connection.commit()

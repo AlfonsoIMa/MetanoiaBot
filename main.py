@@ -171,11 +171,11 @@ async def update_chat(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int
             logging.debug(f"Attempting updating activeness for {user_id}\n\n\n")
             HANDLER.update_user_activeness_today(user_id, chat_id)
             logging.info(f"Activenness for {user_id} today updated")
-            first_pass  = HANDLER.return_current_status_on_chat(chat_id)
-            updated     = HANDLER.update_connections_status(chat_id)
+            last_updated = HANDLER.return_last_updated_date_on_chat(chat_id)
+            updated      = HANDLER.update_connections_status(chat_id)
             if(updated):
                 logging.info(f"All connections updated for {chat_id}")
-                if(first_pass):
+                if(last_updated):
                     streak = HANDLER.update_chat_streak(chat_id)
                     await update.effective_chat.send_message(f"Ihr seid schon {streak} Tage aktiv 👍 macht weiter so 🤝🙏")
         except Exception as e:
@@ -282,13 +282,6 @@ async def run_operator(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
             t_chats = f"```Chats by streak\n{tabulate(chats, headers = ['Streak', 'No. of Chats'], tablefmt = 'grid')}```"
             conns = HANDLER.return_connections_by_status()
             t_conns = f"```Users(Connections) by status\n{tabulate(conns, headers = ['Status', 'No. of Users'], tablefmt = 'grid')}```"
-            with open('report.txt', 'w') as file:
-                # file.write(t_users)
-                file.write(t_chats)
-                file.write(t_conns)
-            with open('report.txt', 'rb') as file:
-                context.bot.send_document(chat_id = this_chat, document = file)
-            os.remove('report.txt')
             await update.effective_chat.send_message('sending tables')
             await update.effective_chat.send_message(f"I currently have {users} users registered!")
             await update.effective_chat.send_message(t_chats, parse_mode = 'MarkdownV2')
