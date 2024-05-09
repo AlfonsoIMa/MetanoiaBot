@@ -122,11 +122,16 @@ class BotParser():
         return False
    
     # TODO - Reset streak
-    def update_chat_streak(self, chat_id: int) -> int:
-        null     = self.cursor.execute("UPDATE chats SET streak = (SELECT streak FROM chats WHERE chat_id = ?) + 1 WHERE chat_id = ?", (chat_id, chat_id))
-        self.connection.commit()
-        q_result = self.cursor.execute("SELECT streak FROM chats WHERE chat_id = ?;", (chat_id,)) 
-        q_result = q_result.fetchall()
+    def update_chat_streak(self, chat_id: int, reset: bool = False) -> int:
+        if(not reset):
+            self.cursor.execute("UPDATE chats SET streak = (SELECT streak FROM chats WHERE chat_id = ?) + 1 WHERE chat_id = ?", (chat_id, chat_id))
+            self.connection.commit()
+            q_result = self.cursor.execute("SELECT streak FROM chats WHERE chat_id = ?;", (chat_id,)) 
+            q_result = q_result.fetchall()
+        else:
+            self.cursor.execute("UPDATE chats SET streak = 0  WHERE chat_id = ?", (chat_id,))
+            self.connection.commit()
+            return 0
         return q_result[0][0]
 
     def update_user_activeness_today(self, user_id: int, chat_id: int) -> bool:

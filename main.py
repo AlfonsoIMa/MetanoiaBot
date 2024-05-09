@@ -171,8 +171,8 @@ async def update_chat(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int
             logging.debug(f"Attempting updating activeness for {user_id}\n\n\n")
             HANDLER.update_user_activeness_today(user_id, chat_id)
             logging.info(f"Activenness for {user_id} today updated")
-            last_updated = HANDLER.return_last_updated_date_on_chat(chat_id)
             updated      = HANDLER.update_connections_status(chat_id)
+            last_updated = HANDLER.return_last_updated_date_on_chat(chat_id)
             if(updated):
                 logging.info(f"All connections updated for {chat_id}")
                 if(last_updated):
@@ -254,6 +254,7 @@ async def run_operator(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
                 if(days_passed in range(0, 2)):
                    continue
                 elif(days_passed in range(3, 7)):
+                    HANDLER.update_chat_streak(chat_id, reset = True)
                     HANDLER.update_chat(chat_id, HANDLER.INACTIVE_ONE_WEEK)
                     await context.bot.send_message(chat_id = chat_id, text = "Hey! Es sieht so aus, als hättet ihr aktuell Schwierigkeiten. Ich will euch ermutigen, macht weiter - Es lohnt sich! 🙏🏼")
                 elif(days_passed in range(8, 15)):
