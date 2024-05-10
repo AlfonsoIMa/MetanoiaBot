@@ -62,7 +62,7 @@ BOT_USERNAME:   Final = '@TheTheologianBot'
 DATABASE:       Final = 'metanoia.db'
 HANDLER:        Final = bp(DATABASE)
 CLIENT = Application.chat_data
-MAIN_LOOP, REGISTRATION, PRAYING, CHOOSING_MENU = range(4)
+MAIN_LOOP, REGISTRATION, PRAYING, CHOOSING_MENU, BROADCAST = range(5)
 OPER_KEYBOARD:  Final = [["CONTACT", "ORDER MATERIAL"], ["CONFERENCE",], ["PRAY FOR ME"]]
 
 # LOGGING
@@ -290,6 +290,23 @@ async def run_operator(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
             await update.effective_chat.send_message('tables sent')
     return MAIN_LOOP
 
+# TODO
+async def broadcast(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    await update.message.reply_text("Please write message to send: ")
+    return BROADCAST
+
+async def broadcasting(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    text            = update.message.text
+    formatted_text  = update.message.text_html
+    await update.message.reply_text(f"Trying to send message: {text}")
+    chats = HANDLER.return_chats()
+    try:
+        for chat in chats:
+            await context.bot.send_message(chat_id = chat[0], text = formatted_text, parse_mode = 'HTML')
+    except Exception as e:
+        raise
+    return CHOOSING_MENU
+
 def days_between(dateOne: str, dateTwo: str) -> int:
     dOne        = datetime.strptime(dateOne, "%Y-%m-%d").date()
     dTwo        = datetime.strptime(dateTwo, "%Y-%m-%d").date()
@@ -309,6 +326,7 @@ def main() -> None:
                               MessageHandler(filters.StatusUpdate.LEFT_CHAT_MEMBER, update_members)],
                   REGISTRATION: [MessageHandler(None, register)],
                   PRAYING: [MessageHandler(None, pray)],
+                  BROADCAST: [MessageHandler(None, broadcasting)],
                   CHOOSING_MENU: [MessageHandler(filters.Regex("CONTACT"),        contact),
                                   MessageHandler(filters.Regex("ORDER MATERIAL"), order_material),
                                   MessageHandler(filters.Regex("CONFERENCE"),     conference),

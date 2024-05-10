@@ -121,7 +121,6 @@ class BotParser():
                 return True
         return False
    
-    # TODO - Reset streak
     def update_chat_streak(self, chat_id: int, reset: bool = False) -> int:
         if(not reset):
             self.cursor.execute("UPDATE chats SET streak = (SELECT streak FROM chats WHERE chat_id = ?) + 1 WHERE chat_id = ?", (chat_id, chat_id))
