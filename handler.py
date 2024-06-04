@@ -57,10 +57,13 @@ class BotParser():
         q_result = self.cursor.execute("SELECT status, COUNT(*) FROM connections WHERE status <> 4 GROUP BY status;")
         return q_result.fetchall()
 
-    def return_last_updated_date_on_chat(self, chat_id: int) -> int:
-        query = self.cursor.execute("SELECT date_updated FROM chats WHERE chat_id = ?", (chat_id,))
+    def return_streak_already_increased(self, chat_id: int) -> str:
+        query = self.cursor.execute("SELECT date_updated, streak FROM chats WHERE chat_id = ?", (chat_id,))
         query = query.fetchall()
-        return True if query[0][0] == date.today().strftime('%Y-%m-%d') else False
+        if(query[0][0] == date.today().strftime('%Y-%m-%d') and query[0][1] != 0):
+            return True
+        else:
+            return False
 
     def return_users(self, field: str = 'user_id', discriminate = False, desired_status: int = -1, desired_gender: int = -1) -> list:
         query = f" AND status = {desired_status};"
@@ -86,7 +89,8 @@ class BotParser():
             return False
     
     def insert_chat(self, chat_id: int, member_count: int) -> bool:
-        self.cursor.execute("INSERT INTO chats VALUES (?, ?, ?, ?, ?, ?)", (chat_id, self.TODAY.strftime('%Y-%m-%d'), self.TODAY.strftime('%Y-%m-%d'), member_count, 0, -1))
+        today = date.today().strftime('%Y-%m-%d')
+        self.cursor.execute("INSERT INTO chats VALUES (?, ?, ?, ?, ?, ?)", (chat_id, today, today, member_count, 0, -1))
         self.connection.commit()
         return True
 
@@ -123,7 +127,8 @@ class BotParser():
    
     def update_chat_streak(self, chat_id: int, reset: bool = False) -> int:
         if(not reset):
-            self.cursor.execute("UPDATE chats SET streak = (SELECT streak FROM chats WHERE chat_id = ?) + 1 WHERE chat_id = ?", (chat_id, chat_id))
+            q_result = self.cursor.execute("UPDATE chats SET streak = (SELECT streak FROM chats WHERE chat_id = ?) + 1 WHERE chat_id = ?", (chat_id, chat_id))
+            q_result = self.cursor.execute("UPDATE chats SET date_updated = ? WHERE chat_id = ?;", (date.today().strftime('%Y-%m-%d'), chat_id))
             self.connection.commit()
             q_result = self.cursor.execute("SELECT streak FROM chats WHERE chat_id = ?;", (chat_id,)) 
             q_result = q_result.fetchall()
@@ -176,9 +181,8 @@ class BotParser():
                         all_active_today = False
                 if(all_active_today):
                     q_result = self.cursor.execute("UPDATE chats SET status = 0 WHERE chat_id = ?;", (chat_id, ))
-                    q_result = self.cursor.execute("UPDATE chats SET date_updated = ? WHERE chat_id = ?;", (date.today().strftime('%y%m%d'), chat_id))
                     q_result = self.cursor.execute("UPDATE connections SET status = 0 WHERE chat_id = ?;", (chat_id, ))
-                    q_result = self.cursor.execute("UPDATE connections SET date_updated = ? WHERE chat_id = ?;", (date.today().strftime('%y%m%d'), chat_id))
+                    q_result = self.cursor.execute("UPDATE connections SET date_updated = ? WHERE chat_id = ?;", (date.today().strftime('%Y-%m-%d'), chat_id))
                     self.connection.commit()
                 return all_active_today
             else: 

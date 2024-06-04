@@ -21,7 +21,6 @@ DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 """
 
-# TODO - 
 """
     - /start will result in registration and automatic lookup for prayer pair.
         - if not found, notify and suggest reccommend bot to local church / community.
@@ -164,6 +163,7 @@ async def register(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
 async def update_chat(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     chat_id = update.effective_chat.id
     user_id = update.effective_user.id
+    # await update.effective_chat.send_message(f"(DEBUG) Chat Updated")
     logging.debug(f"Reading updates from: {user_id}\n\n\n")
     if(chat_id != user_id):
         logging.debug(f"Method update_chat() triggered on chat {chat_id}!\n\n\n")
@@ -171,13 +171,14 @@ async def update_chat(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int
             logging.debug(f"Attempting updating activeness for {user_id}\n\n\n")
             HANDLER.update_user_activeness_today(user_id, chat_id)
             logging.info(f"Activenness for {user_id} today updated")
-            updated      = HANDLER.update_connections_status(chat_id)
-            last_updated = HANDLER.return_last_updated_date_on_chat(chat_id)
+            updated           = HANDLER.update_connections_status(chat_id)
+            already_increased = HANDLER.return_streak_already_increased(chat_id)
             if(updated):
                 logging.info(f"All connections updated for {chat_id}")
-                if(last_updated):
+                if(not already_increased):
                     streak = HANDLER.update_chat_streak(chat_id)
                     await update.effective_chat.send_message(f"Ihr seid schon {streak} Tage aktiv 👍 macht weiter so 🤝🙏")
+                    # await update.effective_chat.send_message(f"DEBUG: date returned {already_increased}; today is {date.today().strftime('%Y-%m-%d')}")
         except Exception as e:
             logging.error(e.with_traceback)
             raise
@@ -290,7 +291,6 @@ async def run_operator(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
             await update.effective_chat.send_message('tables sent')
     return MAIN_LOOP
 
-# TODO
 async def broadcast(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     await update.message.reply_text("Please write message to send: ")
     return BROADCAST
@@ -300,11 +300,11 @@ async def broadcasting(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
     formatted_text  = update.message.text_html
     await update.message.reply_text(f"Trying to send message: {text}")
     chats = HANDLER.return_chats()
-    try:
-        for chat in chats:
+    for chat in chats:
+        try:
             await context.bot.send_message(chat_id = chat[0], text = formatted_text, parse_mode = 'HTML')
-    except Exception as e:
-        raise
+        except Exception as e: #TODO - Find the error and leave the group
+            pass
     return CHOOSING_MENU
 
 def days_between(dateOne: str, dateTwo: str) -> int:
@@ -320,10 +320,11 @@ def main() -> None:
     convStart = ConversationHandler(
         entry_points = [CommandHandler("start", start),
                         CommandHandler("pray", pray),
+                        CommandHandler("broadcast", broadcast),
                         CommandHandler("run", run_operator)],
-        states = {MAIN_LOOP: [MessageHandler(filters.TEXT,                          update_chat),
-                              MessageHandler(filters.StatusUpdate.NEW_CHAT_MEMBERS, update_members),
-                              MessageHandler(filters.StatusUpdate.LEFT_CHAT_MEMBER, update_members)],
+        states = {MAIN_LOOP: [MessageHandler(filters.StatusUpdate.NEW_CHAT_MEMBERS, update_members),
+                              MessageHandler(filters.StatusUpdate.LEFT_CHAT_MEMBER, update_members),
+                              MessageHandler(None,                                  update_chat)],
                   REGISTRATION: [MessageHandler(None, register)],
                   PRAYING: [MessageHandler(None, pray)],
                   BROADCAST: [MessageHandler(None, broadcasting)],
