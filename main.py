@@ -36,7 +36,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SO
         - should give the opportunity to order new materials, register for coming events and so on. 
 """
 
-import logging, threading, time, re, os
+import logging, threading, time, re, os, json
 from datetime import date, datetime
 from handler import BotParser as bp
 from sqlite3 import IntegrityError
@@ -54,35 +54,48 @@ from telegram.ext import (
 )
 from telegram.error import BadRequest, Forbidden
 
-# DAY_OPORTUNITY_CHOSEN = 0
+BOT_DATA = {}
+BOT_MSGR = {}
+with open("data.json", mode = 'r', encoding = 'utf-8') as data_json:
+    DATA = json.load(data_json)
+    BOT_DATA = DATA["data"]
+    BOT_MSGR = DATA["interactions"]
 ADMINSTRATORS:  Final = '' # HIDDEN FOR SECURITY REASONS
 TOKEN:          Final = open('key.txt').read().strip()
-BOT_USERNAME:   Final = '@TheTheologianBot'
-DATABASE:       Final = 'metanoia.db'
+BOT_USERNAME:   Final = BOT_DATA["bot_name"]
+DATABASE:       Final = "metanoia.db"
 HANDLER:        Final = bp(DATABASE)
 CLIENT = Application.chat_data
+
+# CONSTANTS
 MAIN_LOOP, REGISTRATION, PRAYING, CHOOSING_MENU, BROADCAST = range(5)
-OPER_KEYBOARD:  Final = [["CONTACT", "ORDER MATERIAL"], ["CONFERENCE",], ["PRAY FOR ME"]]
+OPER_KEYBOARD: Final = [["CONTACT", "ORDER MATERIAL"], ["CONFERENCE","PRAY FOR ME"], ["LANGUAGE"]]
+KEYBOARDS:     Final = [BOT_MSGR["german"]["keyboard"], BOT_MSGR["ukranian"]["keyboard"]]
+MAIN_KEYBOARD: Final = {"german":   [[KEYBOARDS[0]["CONTACT"],    KEYBOARDS[0]["ORDER_MATERIAL"]],
+                                     [KEYBOARDS[0]["CONFERENCE"], KEYBOARDS[0]["PRAY"]],
+                                     [KEYBOARDS[0]["LANGUAGE"]]],
+                        "ukranian": None} 
+LANG_KEYBOARD: Final = BOT_MSGR["global"]["lang_keys"]
 
 # LOGGING
 logging.basicConfig(format="MAIN APP - %(asctime)s - %(name)s - %(levelname)s - %(message)s", level=logging.DEBUG)
 logging.getLogger("httpx")
 logger = logging.getLogger(__name__)
 
-# Thread subroutine - Deprecated
-# def subroutine():
-    
-
 # Proper bot implementations
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     user_id       = update.effective_user.id
     user_username = update.effective_user.username
     chat_id       = update.effective_chat.id
-    logging.debug(f'\n\n\n/start has been triggered by {user_id} on {chat_id}!')
+    logging.debug(f'/start has been triggered by {user_id} on {chat_id}!')
+    
+    # Group initialization
     if(user_id != chat_id):
-        if(not context.bot.can_read_all_group_messages):
-            logging.error(f'Group {chat_id} has no permissions to read messages! Informing {user_id}')
-            await update.effective_chat.send_message("(Lack Permissions) I don't have permission to see this group's messages! Please ensure I have permissions in the settings bar of this group!")
+        if(not context.bot.can_read_all_group_messages or True):
+            # ERROR 201 - Group lacks permissions to let the bot see the messages
+            logging.error(f'201 : Group {chat_id} has no permissions to read messages! Informing {user_id}')
+            await update.effective_chat.send_message(BOT_MSGR["global"]["201"],
+                                                     parse_mode = "html")
             return MAIN_LOOP
 
         # Get the member count
@@ -90,6 +103,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
         members = await update.effective_chat.get_member_count() - 1
         logging.debug(f'Group {chat_id} has {members} member(s)!\n\n\n')
         
+        # TODO - FIRST CHOOSE A LANGUAGE
         # Register the chat
         try:
             await update.effective_chat.send_message(f"Hey {user_username} schön, dass Du dabei bist. Ich freue mich auf die gemeinsame Nachfolge Jesu! Schreib mir doch kurz eine Nachricht.")
@@ -101,27 +115,68 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
             await update.effective_chat.send_message("Es scheint, als hättet ihr den Chat mehrfach gestartet. Lasst uns schauen, ob alles in Ordnung ist. Schreibt beide mal eine Nachricht.")
         logging.debug(f'\n\n\nSuccesful exit from try/catch sequence, returning to REGISTRATION')
         return REGISTRATION
+    
+    # Indivdual initialization
     else:
-        await update.message.reply_text(f"Hey {user_username} schön, dass Du dabei bist. Ich freue mich auf die verändernde Reise der Nachfolge Jesu! Schreib mir doch kurz eine Nachricht.",
-                                        reply_markup = ReplyKeyboardMarkup(OPER_KEYBOARD,
-                                                                           input_field_placeholder = "CHOOSE AN OPTION",
-                                                                           resize_keyboard = True))
-    return CHOOSING_MENU
+        # Verify that contact is already a registered user.
+        if(not HANDLER.get_user(user_id)):
+            HANDLER.add_user(user_id, user_username)
+        
+        # User hasn't set a language yet.
+        user_lg = HANDLER.get_language(user_id)
+        if(user_lg == "None"):
+            await update.message.reply_text(BOT_MSGR["global"]["001"],
+                                            parse_mode   = 'html',
+                                            reply_markup = ReplyKeyboardMarkup(LANG_KEYBOARD,
+                                                                               resize_keyboard  = True))
+            return REGISTRATION
+        
+        # Error 101: Handling language support throwing exceptions
+        if(user_lg == "ERROR"):
+            await update.message.reply_text(BOT_MSGR["global"]["101"],
+                                            parse_mode   = 'html',
+                                            reply_markup = ReplyKeyboardMarkup(LANG_KEYBOARD,
+                                                                               resize_keyboard  = True))
+            return REGISTRATION
+
+        
+        # Initial message
+        await update.message.reply_text(BOT_MSGR[user_lg]["start_regis"],
+                                        parse_mode   = 'html',
+                                        reply_markup = ReplyKeyboardMarkup(MAIN_KEYBOARD[user_lg],
+                                                                           resize_keyboard  = True))
+        
+        return CHOOSING_MENU
 
 #User-based functions
 async def contact(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    await update.message.reply_text("Du hast Fragen oder Vorschläge? Schreib uns einfach eine info@metanoia\-movement\.org",
-                                    reply_markup = ReplyKeyboardMarkup(OPER_KEYBOARD, input_field_placeholder = "CHOOSE AN OPTION", resize_keyboard = True), disable_web_page_preview = False, parse_mode = "MarkdownV2")
+    user_id       = update.effective_user.id
+    user_username = update.effective_user.username
+    user_lg       = HANDLER.get_language(user_id)
+    await update.message.reply_text(BOT_MSGR[user_lg]["contact"],
+                                            parse_mode   = 'html',
+                                            reply_markup = ReplyKeyboardMarkup(MAIN_KEYBOARD[user_lg],
+                                                                               resize_keyboard  = True))
     return CHOOSING_MENU
 
 async def order_material(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    await update.message.reply_text("Du benötigst neues metanoia-Material?\n\n\- Bibel Journal\n\- Themenheft\n\- Geben\n\- Gehen\n\- Beten\n\nSchreib uns was du brauchst und wir schicken es dir zu\. info@metanoia\-movement\.org",
-                                    reply_markup = ReplyKeyboardMarkup(OPER_KEYBOARD, input_field_placeholder = "CHOOSE AN OPTION", resize_keyboard = True), disable_web_page_preview = False, parse_mode = "MarkdownV2")
+    user_id       = update.effective_user.id
+    user_username = update.effective_user.username
+    user_lg       = HANDLER.get_language(user_id)
+    await update.message.reply_text(BOT_MSGR[user_lg]["order_material"],
+                                            parse_mode   = 'html',
+                                            reply_markup = ReplyKeyboardMarkup(MAIN_KEYBOARD[user_lg],
+                                                                               resize_keyboard  = True))
     return CHOOSING_MENU
 
 async def conference(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    await update.message.reply_text("Für 2025 sind 4 lokale \"metanoia\-Tage\" geplant\. 2026 wollen wir vom 24\.\-26\.April die dritte Konferenz feiern\.\n\n[metanoia-website](http://www.metanoia-movement.org)",
-                                    reply_markup = ReplyKeyboardMarkup(OPER_KEYBOARD, input_field_placeholder = "CHOOSE AN OPTION", resize_keyboard = True), disable_web_page_preview = False, parse_mode = "MarkdownV2")
+    user_id       = update.effective_user.id
+    user_username = update.effective_user.username
+    user_lg       = HANDLER.get_language(user_id)
+    await update.message.reply_text(BOT_MSGR[user_lg]["conference"],
+                                            parse_mode   = 'html',
+                                            reply_markup = ReplyKeyboardMarkup(MAIN_KEYBOARD[user_lg],
+                                                                               resize_keyboard  = True))
     return CHOOSING_MENU
 
 # TODO - implement in both group and private
@@ -134,8 +189,30 @@ async def register(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     user_id       = update.effective_user.id
     user_username = update.effective_user.username
     chat_id       = update.effective_chat.id
-    logging.debug(f"Verifying: {user_username}\n\n\n")
+    logging.debug(f"Verifying: {user_username}")
     try:
+        # TODO - Adaptar a grupos
+        # TODO - Case for first registration.
+        if(user_id == chat_id):
+            choice = update.message.text
+            if("Deutsch" in choice):
+                HANDLER.set_language(user_id, 'german')
+            elif("Український" in choice):
+                HANDLER.set_language(user_id, 'ukranian')
+            else:
+                await update.message.reply_text(BOT_MSGR["global"]["001"],
+                                                parse_mode   = 'html',
+                                                reply_markup = ReplyKeyboardMarkup(LANG_KEYBOARD,
+                                                                                   resize_keyboard  = True))
+                return REGISTRATION
+            
+            user_lg = HANDLER.get_language(user_id)
+            await update.message.reply_text(BOT_MSGR[user_lg]["first_contact"],
+                                            reply_markup = ReplyKeyboardMarkup(MAIN_KEYBOARD["german"],
+                                                                               input_field_placeholder = "CHOOSE AN OPTION",
+                                                                               resize_keyboard = True))
+ 
+            return CHOOSING_MENU
         # Register the user if it's the first time interacting with the bot
         if(not HANDLER.is_user(user_id)):
             await update.effective_chat.send_message(f"{user_username} hat heute noch nichts geschrieben. Schick eine Erinnerung :)")
@@ -219,7 +296,7 @@ async def update_members(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     else:
         logging.info(f'No more members on {chat_id}, exitting chat')
         # All users have left the chat, deleiting registries
-        HANLDER.update_connections_status(chat_id, HANDLER.CLOSED)
+        HANDLER.update_connections_status(chat_id, HANDLER.CLOSED)
         HANDLER.update_chat(chat_id, HANDLER.CLOSED) 
     return MAIN_LOOP
 
@@ -313,7 +390,7 @@ def days_between(dateOne: str, dateTwo: str) -> int:
     return (dTwo - dOne).days
 
 async def error(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    print(f'Update {update} caused error:\n\n{context.error}\n\n{context.error.with_traceback}')
+    logging.error(f'Update {update} caused error:\n\n{context.error}\n\n{context.error.with_traceback}')
     await context.bot.send_message(chat_id = '1523978922', text = f'Update {update} caused error:\n\n{context.error}\n\n{context.error.with_traceback}')
 
 def main() -> None:
@@ -322,17 +399,18 @@ def main() -> None:
                         CommandHandler("pray", pray),
                         CommandHandler("broadcast", broadcast),
                         CommandHandler("run", run_operator)],
-        states = {MAIN_LOOP: [MessageHandler(filters.StatusUpdate.NEW_CHAT_MEMBERS, update_members),
-                              MessageHandler(filters.StatusUpdate.LEFT_CHAT_MEMBER, update_members),
-                              MessageHandler(None,                                  update_chat)],
-                  REGISTRATION: [MessageHandler(None, register)],
-                  PRAYING: [MessageHandler(None, pray)],
-                  BROADCAST: [MessageHandler(None, broadcasting)],
-                  CHOOSING_MENU: [MessageHandler(filters.Regex("CONTACT"),        contact),
-                                  MessageHandler(filters.Regex("ORDER MATERIAL"), order_material),
-                                  MessageHandler(filters.Regex("CONFERENCE"),     conference),
-                                  MessageHandler(filters.Regex("PRAY FOR ME"),    pray),
-                                  MessageHandler(None,                            start)]},
+        states = {MAIN_LOOP:     [MessageHandler(filters.StatusUpdate.NEW_CHAT_MEMBERS, update_members),
+                                  MessageHandler(filters.StatusUpdate.LEFT_CHAT_MEMBER, update_members),
+                                  MessageHandler(None,                                  update_chat)],
+                  REGISTRATION:  [MessageHandler(None, register)],
+                  PRAYING:       [MessageHandler(None, pray)],
+                  BROADCAST:     [MessageHandler(None, broadcasting)],
+                  CHOOSING_MENU: [MessageHandler(filters.Regex("|".join(KEYBOARDS[i]["CONTACT"]        for i in range(len(KEYBOARDS)))),        contact),
+                                  MessageHandler(filters.Regex("|".join(KEYBOARDS[i]["ORDER_MATERIAL"] for i in range(len(KEYBOARDS)))), order_material),
+                                  MessageHandler(filters.Regex("|".join(KEYBOARDS[i]["CONFERENCE"]     for i in range(len(KEYBOARDS)))),     conference),
+                                  MessageHandler(filters.Regex("|".join(KEYBOARDS[i]["PRAY"]           for i in range(len(KEYBOARDS)))),           pray),
+                                  MessageHandler(filters.Regex("|".join(KEYBOARDS[i]["LANGUAGE"]       for i in range(len(KEYBOARDS)))),        contact), #TODO
+                                  MessageHandler(None, start)]},
         fallbacks = [CommandHandler("stop", error)],
         allow_reentry = True,
         per_user = False

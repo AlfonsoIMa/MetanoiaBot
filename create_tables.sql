@@ -9,16 +9,19 @@ CREATE TABLE IF NOT EXISTS users
     user_name       TEXT,
     date_created    TEXT,
     status          INTEGER,
-    is_admin        INTEGER
+    is_admin        INTEGER,
+    language        TEXT
 );
 CREATE TABLE IF NOT EXISTS chats
 (
+ 
     chat_id         INTEGER PRIMARY KEY,
     date_joined     TEXT,
     date_updated    TEXT,
     member_count    INTEGER,
     streak          INTEGER,
-    status          INTEGER
+    status          INTEGER,
+    language        TEXT
 );
 CREATE TABLE IF NOT EXISTS connections
 (

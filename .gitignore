@@ -10,3 +10,4 @@ private_users.sql
 sample_data.sql
 .DS_Store
 *.swp
+metanoia.db

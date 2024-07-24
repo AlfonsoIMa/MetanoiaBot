@@ -192,3 +192,44 @@ class BotParser():
         except Exception as e:
             raise
 
+    def add_user(self, user_id: int, user_name: str, language: str = "None") -> bool:
+        try:
+            q_result = self.cursor.execute("INSERT INTO users VALUES (?, ?, ?, 0, 1, ?);", (user_id, user_name, date.today().strftime('%y%m%d'), language,))
+            self.connection.commit()
+            return True
+        except sqlite3.IntegrityError as e:
+            logging.error(e.with_traceback())
+            raise
+        except sqlite3.ProgrammingError as e:
+            logging.error(e.with_traceback())
+            raise
+        return False
+
+    def get_language(self, chat_id: int, is_group: bool = False) -> str:
+        try:
+            q_result = []
+            if(is_group):
+                pass
+            else:
+                q_result = self.cursor.execute("SELECT language FROM users WHERE user_id = ?;", (chat_id,))
+            q_result = q_result.fetchall()
+            return q_result[0][0]
+        except Exception as e:
+            return 'ERROR'
+
+    def get_user(self, user_id: int) -> bool:
+        q_result = self.cursor.execute("SELECT user_id FROM users WHERE user_id = ?;", (user_id,))
+        q_result = q_result.fetchall()
+        return True if len(q_result) == 1 else False
+
+    def set_language(self, chat_id: int, language: str, is_group: bool = False) -> bool:
+        try:
+            if(is_group):
+                pass
+            else:
+                q_result = self.cursor.execute("UPDATE users SET language = ? WHERE user_id = ?;", (language, chat_id))
+            self.connection.commit()
+            return True
+        except Exception as e:
+            raise
+        return False

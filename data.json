@@ -1,0 +1,44 @@
+{
+    "interactions": {
+        "german"   :
+        {
+            "_KEAYBOARD_"    : "=========================",
+            "keyboard"       : {"CONTACT": "Kontakt", "ORDER_MATERIAL": "Materialbestellung", "CONFERENCE": "Konferenz", "PRAY": "Gebe", "LANGUAGE": "Sprache"},
+            "INDIV_TEXTS"    : "=========================",
+            "first_contact"  : "Hey {user_username} schön, dass Du dabei bist. Ich freue mich auf die verändernde Reise der Nachfolge Jesu! Schreib mir doch kurz eine Nachricht.",
+            "start_regis"    : "Hallo {user_username}! Schön, Sie wiederzusehen. Wie kann ich Ihnen heute helfen?",
+            "contact"        : "Du hast Fragen oder Vorschläge? Schreib uns einfach eine info@metanoia-movement.org",
+            "order_material" : "Du benötigst neues metanoia-Material?\n\n- Bibel Journal\n- Themenheft\n- Geben\n- Gehen\n- Beten\n\nSchreib uns was du brauchst und wir schicken es dir zu. <a href = 'https://metanoia-movement.org'>email an uns!</a>",
+            "conference"     : "Für 2025 sind 4 lokale \"metanoia-Tage\" geplant. 2026 wollen wir vom 24.-26.April die dritte Konferenz feiern.\n\n[metanoia-website](http://www.metanoia-movement.org)",
+            "pray_for_me"    : "Coming up…",
+            "GROUP_TEXTS"    : "========================="
+        },
+
+        "ukranian" :
+        {
+            "_KEAYBOARD_"    : "=========================",
+            "keyboard"       : {"CONTACT": "Kontakt", "ORDER_MATERIAL": "Materialbestellung", "CONFERENCE": "Konferenz", "PRAY": "Gebe", "LANGUAGE": "Sprache"},
+            "INDIV_TEXTS"    : "=========================",
+            "GROUP_TEXTS"    : "=========================",
+            "first_contact"  : "UK_first_contact",
+            "contact"        : "UK_contact",
+            "order_material" : "UK_order_material",
+            "conference"     : "UK_conference",
+            "pray_for_me"    : "UK_Coming up…"
+        },
+        "global" :
+        {
+            "lang_keys"      : [["🇩🇪 Deutsch", "🇺🇦 Український"]],
+            "INDIV_TEXTS"    : "=========================",
+            "001"            : "&#127465;&#127466;: Hey! Wählen Sie eine Sprache für den Anfang!\n&#127482;&#127462;: Привіт! Оберіть мову для початку!",
+            "INDIV_ERROR"    : "=========================",
+            "101"            : "&#127465;&#127466;: Fehler 101: Sieht so aus, als gäbe es einen Fehler in Ihren Spracheinstellungen. Bitte wählen Sie eine andere Sprache und, falls das Problem weiterhin besteht, kontaktieren Sie das Metanoia Staff Team für Unterstützung.\n&#127482;&#127462;: Помилка 101: Схоже, виникла помилка у ваших мовних налаштуваннях; будь ласка, виберіть мову і, якщо проблема не зникне, зверніться за підтримкою до команди Metanoia Staff.",
+            "GROUP_ERROR"    : "=========================",
+            "201"            : "ERROR 201:\n\n&#127465;&#127466;: Ich habe nicht die Berechtigung, die Nachrichten dieser Gruppe zu sehen! Bitte stellen Sie sicher, dass ich in der Einstellungsleiste dieser Gruppe die erforderlichen Berechtigungen habe!\n&#127482;&#127462;: У мене немає прав для перегляду повідомлень цієї групи! Будь ласка, переконайтеся, що у мене є необхідні дозволи в панелі налаштувань цієї групи!"
+        }
+    },
+    "data": {
+        "bot_name" : "metanoia-Puls",
+        "database" : "metanoia.db"
+    }
+}
