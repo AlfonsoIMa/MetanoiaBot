@@ -138,7 +138,6 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
                                             reply_markup = ReplyKeyboardMarkup(LANG_KEYBOARD,
                                                                                resize_keyboard  = True))
             return REGISTRATION
-
         
         # Initial message
         await update.message.reply_text(BOT_MSGR[user_lg]["start_regis"],
@@ -153,7 +152,8 @@ async def contact(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     user_id       = update.effective_user.id
     user_username = update.effective_user.username
     user_lg       = HANDLER.get_language(user_id)
-    await update.message.reply_text(BOT_MSGR[user_lg]["contact"],
+    message       = BOT_MSGR[user_lg]["contact"].replace('{user_username}', user_username)
+    await update.message.reply_text(message,
                                             parse_mode   = 'html',
                                             reply_markup = ReplyKeyboardMarkup(MAIN_KEYBOARD[user_lg],
                                                                                resize_keyboard  = True))
@@ -163,7 +163,8 @@ async def order_material(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     user_id       = update.effective_user.id
     user_username = update.effective_user.username
     user_lg       = HANDLER.get_language(user_id)
-    await update.message.reply_text(BOT_MSGR[user_lg]["order_material"],
+    message       = BOT_MSGR[user_lg]["order_material"].replace('{user_username}', user_username)
+    await update.message.reply_text(message,
                                             parse_mode   = 'html',
                                             reply_markup = ReplyKeyboardMarkup(MAIN_KEYBOARD[user_lg],
                                                                                resize_keyboard  = True))
@@ -173,7 +174,8 @@ async def conference(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     user_id       = update.effective_user.id
     user_username = update.effective_user.username
     user_lg       = HANDLER.get_language(user_id)
-    await update.message.reply_text(BOT_MSGR[user_lg]["conference"],
+    message       = BOT_MSGR[user_lg]["conference"].replace('{user_username}', user_username)
+    await update.message.reply_text(message,
                                             parse_mode   = 'html',
                                             reply_markup = ReplyKeyboardMarkup(MAIN_KEYBOARD[user_lg],
                                                                                resize_keyboard  = True))
@@ -207,8 +209,10 @@ async def register(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
                 return REGISTRATION
             
             user_lg = HANDLER.get_language(user_id)
-            await update.message.reply_text(BOT_MSGR[user_lg]["first_contact"],
-                                            reply_markup = ReplyKeyboardMarkup(MAIN_KEYBOARD["german"],
+            message = BOT_MSGR[user_lg]["first_contact"].replace('{user_username}', user_username)
+            await update.message.reply_text(message,
+                                            parse_mode = 'HTML',
+                                            reply_markup = ReplyKeyboardMarkup(MAIN_KEYBOARD[user_lg],
                                                                                input_field_placeholder = "CHOOSE AN OPTION",
                                                                                resize_keyboard = True))
  

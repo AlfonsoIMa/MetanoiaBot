@@ -5,7 +5,7 @@
             "_KEAYBOARD_"    : "=========================",
             "keyboard"       : {"CONTACT": "Kontakt", "ORDER_MATERIAL": "Materialbestellung", "CONFERENCE": "Konferenz", "PRAY": "Gebe", "LANGUAGE": "Sprache"},
             "INDIV_TEXTS"    : "=========================",
-            "first_contact"  : "Hey {user_username} schön, dass Du dabei bist. Ich freue mich auf die verändernde Reise der Nachfolge Jesu! Schreib mir doch kurz eine Nachricht.",
+            "first_contact"  : "Hey <b>{user_username}</b> schön, dass Du dabei bist. Ich freue mich auf die verändernde Reise der Nachfolge Jesu! Schreib mir doch kurz eine Nachricht.",
             "start_regis"    : "Hallo {user_username}! Schön, Sie wiederzusehen. Wie kann ich Ihnen heute helfen?",
             "contact"        : "Du hast Fragen oder Vorschläge? Schreib uns einfach eine info@metanoia-movement.org",
             "order_material" : "Du benötigst neues metanoia-Material?\n\n- Bibel Journal\n- Themenheft\n- Geben\n- Gehen\n- Beten\n\nSchreib uns was du brauchst und wir schicken es dir zu. <a href = 'https://metanoia-movement.org'>email an uns!</a>",
@@ -20,10 +20,10 @@
             "keyboard"       : {"CONTACT": "Kontakt", "ORDER_MATERIAL": "Materialbestellung", "CONFERENCE": "Konferenz", "PRAY": "Gebe", "LANGUAGE": "Sprache"},
             "INDIV_TEXTS"    : "=========================",
             "GROUP_TEXTS"    : "=========================",
-            "first_contact"  : "UK_first_contact",
-            "contact"        : "UK_contact",
-            "order_material" : "UK_order_material",
-            "conference"     : "UK_conference",
+            "first_contact"  : "UK_first_contact, {user_username}",
+            "contact"        : "UK_contact, {user_username}",
+            "order_material" : "UK_order_material, {user_username}",
+            "conference"     : "UK_conference, {user_username}",
             "pray_for_me"    : "UK_Coming up…"
         },
         "global" :
