@@ -1,26 +1,13 @@
 from datetime import date
 import sqlite3, logging
 
-# TODO Method to (1) Count all users (ADMIN)
-#                (1) Count all connections (ADMIN)
-#                (1) Count all prayers (by status - ADMIN)
-#                (1) Create user
-#                (1) Create prayer request
-#              a (1) Create connection
-#                (1) Get list of all late connections
-#       a.1, b.1 (1) Update status ANY table
-#              b (1) Close connection
-#              c (1) Delete users
-#         a.0 !! (?) Get two free users or return false
-
-logging.basicConfig(format="PARSER - %(asctime)s - %(name)s - %(levelname)s - %(message)s", level=logging.INFO)
-logging.getLogger("httpx")
-logger = logging.getLogger(__name__)
-
 class BotParser():
     def __init__(self, DATABASE: str):
-        self.ID_COUNTER  = 0
+        # Status Constants
+        self.CONNECTING, self.UPDATED, self.INACTIVE_ONE_WEEK, self.INACTIVE_TWO_WEEKS, self.INACTIVE_THREE_WEKS, self.CLOSED = range(-1, 5)
+        # TODO - Date Constant
         self.TODAY       = date.today()
+        # Database
         self.connection  = sqlite3.connect(DATABASE, check_same_thread = False)
         self.cursor      = self.connection.cursor()
 
@@ -37,13 +24,6 @@ class BotParser():
     - DATE IS FORMATED YYYY-MM-DD
     """
 
-    def generate_id(self) -> int:
-        if(self.TODAY != date.today()):
-            self.TODAY = date.today()
-            self.ID_COUNTER = 0
-        self.ID_COUNTER += 1
-        return int(self.TODAY.strftime('%y%m%d') + str(self.ID_COUNTER).zfill(5))
-
     def number_of_users(self, including_linked = False) -> int:
         query = " WHERE status = 0;"
         q_result = self.cursor.execute("SELECT COUNT(id) FROM users" + (query if including_linked else ";"))
@@ -54,95 +34,86 @@ class BotParser():
         q_result = self.cursor.execute("SELECT COUNT(connection_id) FROM connections WHERE status <> 3" + (query if discriminate else ";"))
         return q_result.fetchall()[0][0]
 
-    #def number_of_prayers(self, including_answered = False) -> int:
-    #    query = " WHERE status = 0;"
-    #    q_result = self.cursor.execute("SELECT COUNT(id) FROM prayers" + (query if including_answered else ";"))
-    #    return q_result.fetchall()[0][0]
+    def return_chat_member_count(self, chat_id: int) -> int:
+        q_result = self.cursor.execute("SELECT member_count FROM chats WHERE chat_id = ?;", (chat_id,))
+        q_result = q_result.fetchall()
+        return q_result[0][0]
+    
+    def return_chats(self, discriminate = False, desired_status = 0) -> list:
+        query = f" AND status = {desired_status};"
+        q_result = self.cursor.execute("SELECT * FROM chats WHERE status <> 4" + (query if discriminate else ";"))
+        return q_result.fetchall()
+    
+    def return_chats_by_streak(self) -> list:
+        q_result = self.cursor.execute("SELECT streak, COUNT(*) FROM chats WHERE status <> 4 GROUP BY status;")
+        return q_result.fetchall()
     
     def return_connections(self, discriminate = False, desired_status = 0) -> list:
         query = f" AND status = {desired_status};"
-        q_result = self.cursor.execute("SELECT * FROM connections WHERE status <> 3" + (query if discriminate else ";"))
+        q_result = self.cursor.execute("SELECT * FROM connections WHERE status <> 4" + (query if discriminate else ";"))
         return q_result.fetchall()
 
+    def return_connections_by_status(self) -> list:
+        q_result = self.cursor.execute("SELECT status, COUNT(*) FROM connections WHERE status <> 4 GROUP BY status;")
+        return q_result.fetchall()
+
+    def return_streak_already_increased(self, chat_id: int) -> str:
+        query = self.cursor.execute("SELECT date_updated, streak FROM chats WHERE chat_id = ?", (chat_id,))
+        query = query.fetchall()
+        if(query[0][0] == date.today().strftime('%Y-%m-%d') and query[0][1] != 0):
+            return True
+        else:
+            return False
+
     def return_users(self, field: str = 'user_id', discriminate = False, desired_status: int = -1, desired_gender: int = -1) -> list:
-        query_status = f" status = {desired_status}"
-        query_gender = f" gender = {desired_gender}"
-        final_query = " WHERE"
-        final_query += query_status if discriminate and desired_status != -1 else ""
-        final_query += (" AND" if desired_status != -1 else "") + (query_gender if discriminate and desired_gender != -1 else "")
-        q_result = self.cursor.execute("SELECT ? FROM users" + (final_query if discriminate else "") + ";" , (field,))
+        query = f" AND status = {desired_status};"
+        q_result = self.cursor.execute("SELECT * FROM users WHERE status <> 4" + (query if discriminate else ";"))
         q_result = q_result.fetchall()
         return q_result
+
+    def return_user_count(self) -> list:
+        query = self.cursor.execute("SELECT COUNT(*) FROM users WHERE status <> 4;")
+        return query.fetchall()
 
     def return_users_in_connections(self, chat_id: int) -> list:
-        q_result = self.cursor.execute("SELECT user_id FROM connections WHERE chat_id = ?;", (chat_id,))
+        q_result = self.cursor.execute("SELECT user_id FROM connections WHERE chat_id = ? AND status <> 3;", (chat_id,))
         q_result = q_result.fetchall()
         return q_result
-    
-    def return_user_id_from_username(self, username: str) -> int:
-        q_result = self.cursor.execute("SELECT user_id FROM users WHERE LOWER(user_name) = LOWER(?);", (username,))
-        q_result = q_result.fetchall()
-        return q_result[0][0]
 
-    def insert_user(self, user_id: int, user_name: str, gender: int) -> bool:
+    def insert_user(self, user_id: int, user_name: str) -> bool:
         try:
-            q_result = self.cursor.execute("INSERT INTO users VALUES (?, ?, ?, ?, 0, 0);", (user_id, user_name, self.TODAY.strftime('%y%m%d'), gender))
+            q_result = self.cursor.execute("INSERT INTO users VALUES (?, ?, ?, 0, 0);", (user_id, user_name, self.TODAY.strftime('%y%m%d'),))
             self.connection.commit()
-            # Confirmation
-            q_result = self.cursor.execute("SELECT user_id FROM users WHERE user_id = ?;", (user_id, ))
-            if(len(q_result.fetchall()) == 1):
-                return True
-            return False
+            return True
         except sqlite3.IntegrityError as e:
-            raise
-        except TypeError as e:
-            logging.error("TypeError found here! Probably trying to fetch users?")
+            return False
     
-    #def insert_prayer(self, telegram_id: int, motive: str, date: str, status: int) -> bool:
-    #    q_result        = self.cursor.execute("INSERT INTO prayers VALUES (?, ?, ?, ?, ?);", (self.generate_id(), telegram_id, motive, date, status))
-    #    current_prayers = self.cursor.execute("SELECT COUNT(id) FROM prayers WHERE id_person = ?;", (telegram_id, ))
-    #    current_prayers = current_prayers.fetchall()
-    #    self.connection.commit()
-    #    q_result        = self.cursor.execute("SELECT COUNT(id) FROM prayers WHERE id_person = ?;", (telegram_id, ))
-    #    q_result        = q_result.fetchall()
-    #    if(q_result[0][0] == current_prayers[0][0]):
-    #        return True
-    #    return False
+    def insert_chat(self, chat_id: int, member_count: int) -> bool:
+        today = date.today().strftime('%Y-%m-%d')
+        self.cursor.execute("INSERT INTO chats VALUES (?, ?, ?, ?, ?, ?)", (chat_id, today, today, member_count, 0, -1))
+        self.connection.commit()
+        return True
+
+    def insert_connection(self, user_id: int, chat_id: int) -> bool:
+        self.cursor.execute("INSERT INTO connections (chat_id, user_id, date_creation, date_updated, status) VALUES (?, ?, ?, ?, ?);", (chat_id, user_id, self.TODAY.strftime('%Y-%m-%d'), self.TODAY.strftime('%Y-%m-%d'), 1))
+        self.update_user_status(user_id, 1)
+        self.connection.commit()
+        return True
     
-    def insert_connection(self, user_id: int, chat_id: int) -> list:
-        user_id_pair = self.find_pair_for(user_id)
-        if(self.is_free(user_id) and user_id_pair):
-            logging.info("Pair found!")
-            self.cursor.execute("INSERT INTO chats VALUES (?, ?, ?)", (chat_id, self.TODAY.strftime('%Y-%m-%d'), 1))
-            self.cursor.execute("INSERT INTO connections (chat_id, user_id, date_creation, date_updated, status) VALUES (?, ?, ?, ?, ?);", (chat_id, user_id, self.TODAY.strftime('%Y-%m-%d'), self.TODAY.strftime('%Y-%m-%d'), 1))
-            self.cursor.execute("INSERT INTO connections (chat_id, user_id, date_creation, date_updated, status) VALUES (?, ?, ?, ?, ?);", (chat_id, user_id_pair, self.TODAY.strftime('%Y-%m-%d'), self.TODAY.strftime('%Y-%m-%d'), 1))
-            self.update_user_status(user_id, 1)
-            self.update_user_status(user_id_pair, 1)
-            self.connection.commit()
-            return [chat_id, user_id, user_id_pair]
-        logging.info("Couldn't find pair, returning None")
-        return None
-    
-    #def connect(self, chat_id: int, telegram_id_second: int) -> bool:
-    #    self.cursor.execute("UPDATE connections SET id_person_second = ? WHERE id = ?;", (telegram_id_second, chat_id))
-    #    self.connection.commit()
-    #    return True
-    
-    def find_pair_for(self, telegram_id_to_discriminate: int):
-        q_result = self.cursor.execute("SELECT user_id, user_name FROM users WHERE status = 0 AND user_id <> ? AND gender = (SELECT gender FROM users WHERE user_id = ?);", (telegram_id_to_discriminate, telegram_id_to_discriminate))
-        q_result = q_result.fetchall()
-        logging.info(q_result)
-        return q_result if len(q_result) else 0
-     
     def is_user(self, user_id: int) -> bool:
         q_result = self.cursor.execute("SELECT user_id FROM users WHERE user_id = ?;", (user_id,))
         q_result = q_result.fetchall()
         return 1 if len(q_result) else 0
-    
-    def is_free(self, user_id: int) -> bool:
-        q_result = self.cursor.execute("SELECT status FROM users WHERE user_id = ?;", (user_id,))
+
+    def is_administrator(self, user_id: int) -> bool:
+        q_result = self.cursor.execute("SELECT is_admin FROM users WHERE user_id = ?;", (user_id,))
         q_result = q_result.fetchall()
-        if(int(q_result[0][0]) == 0):
+        return q_result[0][0]
+
+    def is_in_connection(self, user_id: int, chat_id: int) -> bool:
+        q_result = self.cursor.execute("SELECT connection_id FROM connections WHERE user_id = ? AND chat_id = ?;", (user_id, chat_id,))
+        q_result = q_result.fetchall()
+        if(len(q_result)):
             return 1
         return 0
 
@@ -150,14 +121,28 @@ class BotParser():
         q_result = self.cursor.execute("SELECT date_updated FROM connections WHERE user_id = ?;", (user_id,))
         q_result = q_result.fetchall()
         for row in q_result:
-            if(row[0] == self.TODAY.strftime('%Y-%m-%d')):
+            if(row[0] == date.today().strftime('%Y-%m-%d')):
                 return True
         return False
-    
+   
+    def update_chat_streak(self, chat_id: int, reset: bool = False) -> int:
+        if(not reset):
+            q_result = self.cursor.execute("UPDATE chats SET streak = (SELECT streak FROM chats WHERE chat_id = ?) + 1 WHERE chat_id = ?", (chat_id, chat_id))
+            q_result = self.cursor.execute("UPDATE chats SET date_updated = ? WHERE chat_id = ?;", (date.today().strftime('%Y-%m-%d'), chat_id))
+            self.connection.commit()
+            q_result = self.cursor.execute("SELECT streak FROM chats WHERE chat_id = ?;", (chat_id,)) 
+            q_result = q_result.fetchall()
+        else:
+            self.cursor.execute("UPDATE chats SET streak = 0  WHERE chat_id = ?", (chat_id,))
+            self.connection.commit()
+            return 0
+        return q_result[0][0]
+
     def update_user_activeness_today(self, user_id: int, chat_id: int) -> bool:
         try:
-            today = self.TODAY.strftime('%Y-%m-%d')
+            today = date.today().strftime('%Y-%m-%d')
             q_result = self.cursor.execute("UPDATE connections SET date_updated = ? WHERE user_id = ? AND chat_id = ?;", (today,  user_id, chat_id))
+            q_result = self.cursor.execute("UPDATE connections SET status = 0 WHERE user_id = ? AND chat_id = ?;", (user_id, chat_id))
             self.connection.commit()
             return True
         except Exception as e:
@@ -171,6 +156,21 @@ class BotParser():
         except Exception as e:
             raise
 
+    def update_user_in_connection(self, chat_id: int, user_id: int, status: int = 0) -> bool:
+        q_result = self.cursor.execute("UPDATE connections SET status = ? WHERE chat_id = ? AND user_id = ?;", (status, chat_id, user_id))
+        self.connection.commit()
+        return True
+
+    def update_chat(self, chat_id: int, status: int = 0) -> bool:
+        q_result = self.cursor.execute("UPDATE chats SET status = ? WHERE chat_id = ?;", (status, chat_id))
+        self.connection.commit()
+        return True
+
+    def update_chat_members(self, chat_id: int, new_number: int = 0) -> bool:
+        q_result = self.cursor.execute("UPDATE chats SET member_count = ? WHERE chat_id = ?;", (new_number, chat_id))
+        self.connection.commit()
+        return True
+
     def update_connections_status(self, chat_id: int, status: int = 0) -> bool:
         try:
             if(status == 0): # Bot wants to update chat to "TODAY"
@@ -182,7 +182,7 @@ class BotParser():
                 if(all_active_today):
                     q_result = self.cursor.execute("UPDATE chats SET status = 0 WHERE chat_id = ?;", (chat_id, ))
                     q_result = self.cursor.execute("UPDATE connections SET status = 0 WHERE chat_id = ?;", (chat_id, ))
-                    q_result = self.cursor.execute("UPDATE connections SET date_updated = ? WHERE chat_id = ?;", (self.TODAY.strftime('%y%m%d'), chat_id))
+                    q_result = self.cursor.execute("UPDATE connections SET date_updated = ? WHERE chat_id = ?;", (date.today().strftime('%Y-%m-%d'), chat_id))
                     self.connection.commit()
                 return all_active_today
             else: 
@@ -192,11 +192,44 @@ class BotParser():
         except Exception as e:
             raise
 
-    #def update_connections_id(self, old_id: int, group_chat_id: int) -> bool:
-    #    try:
-    #        q_result = self.cursor.execute("UPDATE connections SET id = ? WHERE id = ?;", (group_chat_id, old_id))
-    #        self.connection.commit()
-    #        return True
-    #    except Exception as e:
-    #        raise
- 
+    def add_user(self, user_id: int, user_name: str, language: str = "None") -> bool:
+        try:
+            q_result = self.cursor.execute("INSERT INTO users VALUES (?, ?, ?, 0, 1, ?);", (user_id, user_name, date.today().strftime('%y%m%d'), language,))
+            self.connection.commit()
+            return True
+        except sqlite3.IntegrityError as e:
+            logging.error(e.with_traceback())
+            raise
+        except sqlite3.ProgrammingError as e:
+            logging.error(e.with_traceback())
+            raise
+        return False
+
+    def get_language(self, chat_id: int, is_group: bool = False) -> str:
+        try:
+            q_result = []
+            if(is_group):
+                pass
+            else:
+                q_result = self.cursor.execute("SELECT language FROM users WHERE user_id = ?;", (chat_id,))
+            q_result = q_result.fetchall()
+            return q_result[0][0]
+        except Exception as e:
+            return 'ERROR'
+
+    def get_user(self, user_id: int) -> bool:
+        q_result = self.cursor.execute("SELECT user_id FROM users WHERE user_id = ?;", (user_id,))
+        q_result = q_result.fetchall()
+        return True if len(q_result) == 1 else False
+
+    def set_language(self, chat_id: int, language: str, is_group: bool = False) -> bool:
+        try:
+            if(is_group):
+                pass
+            else:
+                q_result = self.cursor.execute("UPDATE users SET language = ? WHERE user_id = ?;", (language, chat_id))
+            self.connection.commit()
+            return True
+        except Exception as e:
+            raise
+        return False

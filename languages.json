@@ -1,0 +1,16 @@
+{
+"german"   :
+        {
+            "contact"        : "Du hast Fragen oder Vorschläge? Schreib uns einfach eine info@metanoia-movement.org",
+            "order_material" : "Du benötigst neues metanoia-Material?\n\n- Bibel Journal\n- Themenheft\n- Geben\n- Gehen\n- Beten\n\nSchreib uns was du brauchst und wir schicken es dir zu. info@metanoia-movement.org",
+            "conference"     : "Für 2025 sind 4 lokale \"metanoia-Tage\" geplant. 2026 wollen wir vom 24.-26.April die dritte Konferenz feiern.\n\n[metanoia-website](http://www.metanoia-movement.org)",
+            "pray_for_me"    : "Coming up…"
+        },
+"ukranian" :
+        {
+            "contact"        : "UK_contact",
+            "order_material" : "UK_order_material",
+            "conference"     : "UK_conference",
+            "pray_for_me"    : "UK_Coming up…"
+        }
+}

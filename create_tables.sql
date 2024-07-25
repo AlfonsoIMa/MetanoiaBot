@@ -1,26 +1,27 @@
+-- Regenerate tables
+DROP TABLE users;
+DROP TABLE chats;
+DROP TABLE connections;
+
 CREATE TABLE IF NOT EXISTS users
 (
     user_id         INTEGER PRIMARY KEY,
     user_name       TEXT,
     date_created    TEXT,
-    gender          INTEGER,
     status          INTEGER,
-    is_admin        INTEGER
+    is_admin        INTEGER,
+    language        TEXT
 );
---CREATE TABLE IF NOT EXISTS prayers
---(
---    id INTEGER PRIMARY KEY,
---    id_person INTEGER,
---    motive TEXT,
---    date TEXT,
---    status INTEGER,
---    FOREIGN KEY(id_person) REFERENCES people(id)
---);
 CREATE TABLE IF NOT EXISTS chats
 (
+ 
     chat_id         INTEGER PRIMARY KEY,
     date_joined     TEXT,
-    status          INTEGER
+    date_updated    TEXT,
+    member_count    INTEGER,
+    streak          INTEGER,
+    status          INTEGER,
+    language        TEXT
 );
 CREATE TABLE IF NOT EXISTS connections
 (
