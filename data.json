@@ -3,7 +3,7 @@
         "german"   :
         {
             "_KEAYBOARD_"    : "=========================",
-            "keyboard"       : {"CONTACT": "Kontakt", "ORDER_MATERIAL": "Materialbestellung", "CONFERENCE": "Konferenz", "PRAY": "Gebe", "LANGUAGE": "Sprache"},
+            "keyboard"       : {"CONTACT": "Kontakt", "ORDER_MATERIAL": "Materialbestellung", "CONFERENCE": "Konferenz", "PRAY": "Gebe", "LANGUAGE": "🌐 Sprache"},
             "INDIV_TEXTS"    : "=========================",
             "first_contact"  : "Hey <b>{user_username}</b> schön, dass Du dabei bist. Ich freue mich auf die verändernde Reise der Nachfolge Jesu! Schreib mir doch kurz eine Nachricht.",
             "start_regis"    : "Hallo {user_username}! Schön, Sie wiederzusehen. Wie kann ich Ihnen heute helfen?",
@@ -17,20 +17,22 @@
         "ukranian" :
         {
             "_KEAYBOARD_"    : "=========================",
-            "keyboard"       : {"CONTACT": "Контакти", "ORDER_MATERIAL": "Замовити матеріали", "CONFERENCE": "Конференція", "PRAY": "Молитва", "LANGUAGE": "Мова"},
+            "keyboard"       : {"CONTACT": "Контакти", "ORDER_MATERIAL": "Замовити матеріали", "CONFERENCE": "Конференція", "PRAY": "Молитва", "LANGUAGE": "🌐 Мова"},
             "INDIV_TEXTS"    : "=========================",
-            "GROUP_TEXTS"    : "=========================",
-            "first_contact"  : "UK_first_contact, {user_username}",
+            "first_contact"  : "Привіт, {user_username}! Я радий, що ти з нами. Я з нетерпінням чекаю на перетворюючу подорож слідування за Ісусом! Чому б тобі не написати мені?",
+            "start_regis"    : "START_Привіт, {user_username}! Я радий, що ти з нами. Я з нетерпінням чекаю на перетворюючу подорож слідування за Ісусом! Чому б тобі не написати мені?",
             "contact"        : "UK_contact, {user_username}",
             "order_material" : "UK_order_material, {user_username}",
             "conference"     : "UK_conference, {user_username}",
-            "pray_for_me"    : "UK_Coming up…"
+            "pray_for_me"    : "UK_Coming up…",
+            "GROUP_TEXTS"    : "========================="
         },
         "global" :
         {
             "lang_keys"      : [["🇩🇪 Deutsch", "🇺🇦 Український"]],
             "INDIV_TEXTS"    : "=========================",
             "001"            : "&#127465;&#127466;: Hey! Wählen Sie eine Sprache für den Anfang!\n&#127482;&#127462;: Привіт! Оберіть мову для початку!",
+            "002"            : "&#127465;&#127466;: Bitte wählen Sie eine Sprache, um fortzufahren.\n&#127482;&#127462;: Будь ласка, оберіть мову для продовження.",
             "INDIV_ERROR"    : "=========================",
             "101"            : "&#127465;&#127466;: Fehler 101: Sieht so aus, als gäbe es einen Fehler in Ihren Spracheinstellungen. Bitte wählen Sie eine andere Sprache und, falls das Problem weiterhin besteht, kontaktieren Sie das Metanoia Staff Team für Unterstützung.\n&#127482;&#127462;: Помилка 101: Схоже, виникла помилка у ваших мовних налаштуваннях; будь ласка, виберіть мову і, якщо проблема не зникне, зверніться за підтримкою до команди Metanoia Staff.",
             "GROUP_ERROR"    : "=========================",
