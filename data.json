@@ -17,7 +17,7 @@
         "ukranian" :
         {
             "_KEAYBOARD_"    : "=========================",
-            "keyboard"       : {"CONTACT": "Kontakt", "ORDER_MATERIAL": "Materialbestellung", "CONFERENCE": "Konferenz", "PRAY": "Gebe", "LANGUAGE": "Sprache"},
+            "keyboard"       : {"CONTACT": "Контакти", "ORDER_MATERIAL": "Замовити матеріали", "CONFERENCE": "Конференція", "PRAY": "Молитва", "LANGUAGE": "Мова"},
             "INDIV_TEXTS"    : "=========================",
             "GROUP_TEXTS"    : "=========================",
             "first_contact"  : "UK_first_contact, {user_username}",
