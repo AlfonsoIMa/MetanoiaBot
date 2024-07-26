@@ -65,7 +65,7 @@ TOKEN:          Final = open('key.txt').read().strip()
 BOT_USERNAME:   Final = BOT_DATA["bot_name"]
 DATABASE:       Final = "metanoia.db"
 HANDLER:        Final = bp(DATABASE)
-CLIENT = Application.chat_data
+# CLIENT = Application.chat_data
 
 # CONSTANTS
 MAIN_LOOP, REGISTRATION, PRAYING, CHOOSING_MENU, BROADCAST = range(5)
@@ -74,7 +74,9 @@ KEYBOARDS:     Final = [BOT_MSGR["german"]["keyboard"], BOT_MSGR["ukranian"]["ke
 MAIN_KEYBOARD: Final = {"german":   [[KEYBOARDS[0]["CONTACT"],    KEYBOARDS[0]["ORDER_MATERIAL"]],
                                      [KEYBOARDS[0]["CONFERENCE"], KEYBOARDS[0]["PRAY"]],
                                      [KEYBOARDS[0]["LANGUAGE"]]],
-                        "ukranian": None} 
+                        "ukranian": [[KEYBOARDS[1]["CONTACT"],    KEYBOARDS[1]["ORDER_MATERIAL"]],
+                                     [KEYBOARDS[1]["CONFERENCE"], KEYBOARDS[1]["PRAY"]],
+                                     [KEYBOARDS[1]["LANGUAGE"]]]} 
 LANG_KEYBOARD: Final = BOT_MSGR["global"]["lang_keys"]
 
 # LOGGING
