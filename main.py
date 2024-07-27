@@ -65,16 +65,18 @@ TOKEN:          Final = open('key.txt').read().strip()
 BOT_USERNAME:   Final = BOT_DATA["bot_name"]
 DATABASE:       Final = "metanoia.db"
 HANDLER:        Final = bp(DATABASE)
-CLIENT = Application.chat_data
+# CLIENT = Application.chat_data
 
 # CONSTANTS
-MAIN_LOOP, REGISTRATION, PRAYING, CHOOSING_MENU, BROADCAST = range(5)
+MAIN_LOOP, REGISTRATION, PRAYING, CHOOSING_MENU, BROADCAST, LANGUAGE_CHOSEN = range(6)
 OPER_KEYBOARD: Final = [["CONTACT", "ORDER MATERIAL"], ["CONFERENCE","PRAY FOR ME"], ["LANGUAGE"]]
 KEYBOARDS:     Final = [BOT_MSGR["german"]["keyboard"], BOT_MSGR["ukranian"]["keyboard"]]
 MAIN_KEYBOARD: Final = {"german":   [[KEYBOARDS[0]["CONTACT"],    KEYBOARDS[0]["ORDER_MATERIAL"]],
                                      [KEYBOARDS[0]["CONFERENCE"], KEYBOARDS[0]["PRAY"]],
                                      [KEYBOARDS[0]["LANGUAGE"]]],
-                        "ukranian": None} 
+                        "ukranian": [[KEYBOARDS[1]["CONTACT"],    KEYBOARDS[1]["ORDER_MATERIAL"]],
+                                     [KEYBOARDS[1]["CONFERENCE"], KEYBOARDS[1]["PRAY"]],
+                                     [KEYBOARDS[1]["LANGUAGE"]]]} 
 LANG_KEYBOARD: Final = BOT_MSGR["global"]["lang_keys"]
 
 # LOGGING
@@ -120,6 +122,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     else:
         # Verify that contact is already a registered user.
         if(not HANDLER.get_user(user_id)):
+            logging.info("Bot identifies {user_username} as unregistered user, trying to insert")
             HANDLER.add_user(user_id, user_username)
         
         # User hasn't set a language yet.
@@ -181,6 +184,50 @@ async def conference(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
                                                                                resize_keyboard  = True))
     return CHOOSING_MENU
 
+async def prompt_change_language(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    user_id       = update.effective_user.id
+    user_username = update.effective_user.username
+    chat_id       = update.effective_chat.id
+    try:
+        await update.message.reply_text(BOT_MSGR["global"]["002"],
+                                                parse_mode   = 'html',
+                                                reply_markup = ReplyKeyboardMarkup(LANG_KEYBOARD,
+                                                                                   resize_keyboard  = True))
+        return LANGUAGE_CHOSEN
+    except Exception as e:
+        raise
+
+async def change_language(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    user_id       = update.effective_user.id
+    user_username = update.effective_user.username
+    chat_id       = update.effective_chat.id
+    choice        = update.message.text
+    on_group      = False
+    if(user_id != chat_id):
+        on_group = True
+    try:
+        if("Deutsch" in choice):
+            HANDLER.set_language(user_id, 'german')
+        elif("Український" in choice):
+            HANDLER.set_language(user_id, 'ukranian')
+        else:
+            await update.message.reply_text(BOT_MSGR["global"]["001"],
+                                            parse_mode   = 'html',
+                                            reply_markup = ReplyKeyboardMarkup(LANG_KEYBOARD,
+                                                                               resize_keyboard  = True))
+            return LANGUAGE_CHOSEN
+        
+        user_lg = HANDLER.get_language(user_id)
+        message = BOT_MSGR[user_lg]["first_contact"].replace('{user_username}', user_username)
+        await update.message.reply_text(message,
+                                        parse_mode = 'HTML',
+                                        reply_markup = ReplyKeyboardMarkup(MAIN_KEYBOARD[user_lg],
+                                                                           input_field_placeholder = "CHOOSE AN OPTION",
+                                                                           resize_keyboard = True))
+        return CHOOSING_MENU
+    except Exception as e:
+        raise
+
 # TODO - implement in both group and private
 async def pray(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     await update.effective_chat.send_message("#TODO - This function is still in development, come back soon! ;)")
@@ -217,6 +264,7 @@ async def register(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
                                                                                resize_keyboard = True))
  
             return CHOOSING_MENU
+        
         # Register the user if it's the first time interacting with the bot
         if(not HANDLER.is_user(user_id)):
             await update.effective_chat.send_message(f"{user_username} hat heute noch nichts geschrieben. Schick eine Erinnerung :)")
@@ -403,18 +451,19 @@ def main() -> None:
                         CommandHandler("pray", pray),
                         CommandHandler("broadcast", broadcast),
                         CommandHandler("run", run_operator)],
-        states = {MAIN_LOOP:     [MessageHandler(filters.StatusUpdate.NEW_CHAT_MEMBERS, update_members),
-                                  MessageHandler(filters.StatusUpdate.LEFT_CHAT_MEMBER, update_members),
-                                  MessageHandler(None,                                  update_chat)],
-                  REGISTRATION:  [MessageHandler(None, register)],
-                  PRAYING:       [MessageHandler(None, pray)],
-                  BROADCAST:     [MessageHandler(None, broadcasting)],
-                  CHOOSING_MENU: [MessageHandler(filters.Regex("|".join(KEYBOARDS[i]["CONTACT"]        for i in range(len(KEYBOARDS)))),        contact),
-                                  MessageHandler(filters.Regex("|".join(KEYBOARDS[i]["ORDER_MATERIAL"] for i in range(len(KEYBOARDS)))), order_material),
-                                  MessageHandler(filters.Regex("|".join(KEYBOARDS[i]["CONFERENCE"]     for i in range(len(KEYBOARDS)))),     conference),
-                                  MessageHandler(filters.Regex("|".join(KEYBOARDS[i]["PRAY"]           for i in range(len(KEYBOARDS)))),           pray),
-                                  MessageHandler(filters.Regex("|".join(KEYBOARDS[i]["LANGUAGE"]       for i in range(len(KEYBOARDS)))),        contact), #TODO
-                                  MessageHandler(None, start)]},
+        states = {MAIN_LOOP:       [MessageHandler(filters.StatusUpdate.NEW_CHAT_MEMBERS, update_members),
+                                    MessageHandler(filters.StatusUpdate.LEFT_CHAT_MEMBER, update_members),
+                                    MessageHandler(None,                                  update_chat)],
+                  REGISTRATION:    [MessageHandler(None, register)],
+                  PRAYING:         [MessageHandler(None, pray)],
+                  BROADCAST:       [MessageHandler(None, broadcasting)],
+                  CHOOSING_MENU:   [MessageHandler(filters.Regex("|".join(KEYBOARDS[i]["CONTACT"]        for i in range(len(KEYBOARDS)))),                contact),
+                                    MessageHandler(filters.Regex("|".join(KEYBOARDS[i]["ORDER_MATERIAL"] for i in range(len(KEYBOARDS)))),         order_material),
+                                    MessageHandler(filters.Regex("|".join(KEYBOARDS[i]["CONFERENCE"]     for i in range(len(KEYBOARDS)))),             conference),
+                                    MessageHandler(filters.Regex("|".join(KEYBOARDS[i]["PRAY"]           for i in range(len(KEYBOARDS)))),                   pray),
+                                    MessageHandler(filters.Regex("|".join(KEYBOARDS[i]["LANGUAGE"]       for i in range(len(KEYBOARDS)))), prompt_change_language),
+                                    MessageHandler(None, start)],
+                  LANGUAGE_CHOSEN: [MessageHandler(None, change_language)]},
         fallbacks = [CommandHandler("stop", error)],
         allow_reentry = True,
         per_user = False
