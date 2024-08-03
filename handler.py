@@ -80,6 +80,7 @@ class BotParser():
         q_result = q_result.fetchall()
         return q_result
 
+    # DEPRECATED
     def insert_user(self, user_id: int, user_name: str) -> bool:
         try:
             q_result = self.cursor.execute("INSERT INTO users VALUES (?, ?, ?, 0, 0);", (user_id, user_name, self.TODAY.strftime('%y%m%d'),))
@@ -87,16 +88,17 @@ class BotParser():
             return True
         except sqlite3.IntegrityError as e:
             return False
-    
+   
+   # DEPRECATED
     def insert_chat(self, chat_id: int, member_count: int) -> bool:
         today = date.today().strftime('%Y-%m-%d')
         self.cursor.execute("INSERT INTO chats VALUES (?, ?, ?, ?, ?, ?)", (chat_id, today, today, member_count, 0, -1))
         self.connection.commit()
         return True
 
-    def insert_connection(self, user_id: int, chat_id: int) -> bool:
+    def add_connection(self, user_id: int, chat_id: int) -> bool:
         self.cursor.execute("INSERT INTO connections (chat_id, user_id, date_creation, date_updated, status) VALUES (?, ?, ?, ?, ?);", (chat_id, user_id, self.TODAY.strftime('%Y-%m-%d'), self.TODAY.strftime('%Y-%m-%d'), 1))
-        self.update_user_status(user_id, 1)
+        self.set_user_status(user_id, 1)
         self.connection.commit()
         return True
     
@@ -147,8 +149,9 @@ class BotParser():
             return True
         except Exception as e:
             raise
-    
-    def update_user_status(self, user_id: int, status: int = 0) -> bool:
+   
+    # UPDATE - TODO - Refactor
+    def set_user_status(self, user_id: int, status: int = 0) -> bool:
         try:
             q_result = self.cursor.execute("UPDATE users SET status = ? WHERE user_id = ?;", (status, user_id))
             self.connection.commit()
@@ -192,6 +195,16 @@ class BotParser():
         except Exception as e:
             raise
 
+    def add_chat(self, chat_id: int, member_count: int, language: str = "None") -> bool:
+        try:
+            today = date.today().strftime('%Y-%m-%d')
+            self.cursor.execute("INSERT INTO chats VALUES (?, ?, ?, ?, 0, -1, ?)", (chat_id, today, today, member_count, language))
+            self.connection.commit()
+        except sqlite3.IntegrityError as e:
+            logging.error(e.with_traceback())
+            raise
+        return False
+
     def add_user(self, user_id: int, user_name: str, language: str = "None") -> bool:
         try:
             q_result = self.cursor.execute("INSERT INTO users VALUES (?, ?, ?, 0, 1, ?);", (user_id, user_name, date.today().strftime('%y%m%d'), language,))
@@ -204,12 +217,17 @@ class BotParser():
             logging.error(e.with_traceback())
             raise
         return False
-
+    
+    def get_chat(self, chat_id: int) -> bool:
+        q_result = self.cursor.execute("SELECT chat_id FROM chats WHERE chat_id = ?;", (chat_id,))
+        q_result = q_result.fetchall()
+        return True if len(q_result) == 1 else False
+ 
     def get_language(self, chat_id: int, is_group: bool = False) -> str:
         try:
             q_result = []
             if(is_group):
-                pass
+                q_result = self.cursor.execute("SELECT language FROM chats WHERE chat_id = ?;", (chat_id,))
             else:
                 q_result = self.cursor.execute("SELECT language FROM users WHERE user_id = ?;", (chat_id,))
             q_result = q_result.fetchall()
@@ -225,7 +243,7 @@ class BotParser():
     def set_language(self, chat_id: int, language: str, is_group: bool = False) -> bool:
         try:
             if(is_group):
-                pass
+                q_result = self.cursor.execute("UPDATE chats SET language = ? WHERE chat_id = ?;", (language, chat_id))
             else:
                 q_result = self.cursor.execute("UPDATE users SET language = ? WHERE user_id = ?;", (language, chat_id))
             self.connection.commit()

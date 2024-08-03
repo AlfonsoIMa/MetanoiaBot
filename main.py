@@ -80,7 +80,7 @@ MAIN_KEYBOARD: Final = {"german":   [[KEYBOARDS[0]["CONTACT"],    KEYBOARDS[0]["
 LANG_KEYBOARD: Final = BOT_MSGR["global"]["lang_keys"]
 
 # LOGGING
-logging.basicConfig(format="MAIN APP - %(asctime)s - %(name)s - %(levelname)s - %(message)s", level=logging.DEBUG)
+logging.basicConfig(format="MAIN APP - %(asctime)s - %(name)s - %(levelname)s - %(message)s", level=logging.INFO)
 logging.getLogger("httpx")
 logger = logging.getLogger(__name__)
 
@@ -89,31 +89,36 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     user_id       = update.effective_user.id
     user_username = update.effective_user.username
     chat_id       = update.effective_chat.id
-    logging.debug(f'/start has been triggered by {user_id} on {chat_id}!')
+    logging.info(f'/start has been triggered by {user_id} on {chat_id}!')
     
     # Group initialization
     if(user_id != chat_id):
-        if(not context.bot.can_read_all_group_messages or True):
-            # ERROR 201 - Group lacks permissions to let the bot see the messages
-            logging.error(f'201 : Group {chat_id} has no permissions to read messages! Informing {user_id}')
-            await update.effective_chat.send_message(BOT_MSGR["global"]["201"],
-                                                     parse_mode = "html")
-            return MAIN_LOOP
+        if(not HANDLER.get_chat(chat_id)): 
+            if(not context.bot.can_read_all_group_messages):
+                # ERROR 201 - Group lacks permissions to let the bot see the messages
+                logging.error(f'301 : Group {chat_id} has no permissions to read messages! Informing {user_id}')
+                await update.effective_chat.send_message(BOT_MSGR["global"]["201"],
+                                                         parse_mode = "html")
+                return MAIN_LOOP
 
-        # Get the member count
-        await update.effective_chat.send_action(constants.ChatAction.TYPING)
-        members = await update.effective_chat.get_member_count() - 1
-        logging.debug(f'Group {chat_id} has {members} member(s)!\n\n\n')
-        
-        # TODO - FIRST CHOOSE A LANGUAGE
+            # Get the member count
+            await update.effective_chat.send_action(constants.ChatAction.TYPING)
+            members = await update.effective_chat.get_member_count() - 1
+            logging.debug(f'Group {chat_id} has {members} member(s)!\n\n\n')
+           
         # Register the chat
         try:
-            await update.effective_chat.send_message(f"Hey {user_username} schön, dass Du dabei bist. Ich freue mich auf die gemeinsame Nachfolge Jesu! Schreib mir doch kurz eine Nachricht.")
-            logging.debug(f'Registering {chat_id} with {members} member(s)!\n\n\n')
-            HANDLER.insert_chat(chat_id, members)
-            logging.debug(f'Succesful registration of {chat_id} with {members} member(s)! returning to REGISTRATION\n\n\n')
+            # Entry message for users in groups greeting and plotting for a language
+            await update.message.reply_text(BOT_MSGR["global"]["201"],
+                                            parse_mode   = 'html',
+                                            reply_markup = ReplyKeyboardMarkup(LANG_KEYBOARD,
+                                                                               resize_keyboard  = True))
+            logging.info(f'Registering {chat_id} with {members} member(s)!')
+            HANDLER.add_chat(chat_id, members)
+            logging.info(f'Succesful registration of {chat_id} with {members} member(s)! returning to REGISTRATION')
         except IntegrityError as i:
             logging.warning(f'IntegrityError for {chat_id} has been triggered! Defaulting to Registration for confirmation.')
+            # TODO
             await update.effective_chat.send_message("Es scheint, als hättet ihr den Chat mehrfach gestartet. Lasst uns schauen, ob alles in Ordnung ist. Schreibt beide mal eine Nachricht.")
         logging.debug(f'\n\n\nSuccesful exit from try/catch sequence, returning to REGISTRATION')
         return REGISTRATION
@@ -147,7 +152,6 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
                                         parse_mode   = 'html',
                                         reply_markup = ReplyKeyboardMarkup(MAIN_KEYBOARD[user_lg],
                                                                            resize_keyboard  = True))
-        
         return CHOOSING_MENU
 
 #User-based functions
@@ -233,28 +237,32 @@ async def pray(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     await update.effective_chat.send_message("#TODO - This function is still in development, come back soon! ;)")
     return CHOOSING_MENU
 
-# Group based functions
 async def register(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     user_id       = update.effective_user.id
     user_username = update.effective_user.username
     chat_id       = update.effective_chat.id
-    logging.debug(f"Verifying: {user_username}")
+    is_group      = True
+    logging.info(f"Verifying: {user_username}")
     try:
-        # TODO - Adaptar a grupos
-        # TODO - Case for first registration.
+        # Case for first registration.
         if(user_id == chat_id):
-            choice = update.message.text
-            if("Deutsch" in choice):
-                HANDLER.set_language(user_id, 'german')
-            elif("Український" in choice):
-                HANDLER.set_language(user_id, 'ukranian')
-            else:
-                await update.message.reply_text(BOT_MSGR["global"]["001"],
-                                                parse_mode   = 'html',
-                                                reply_markup = ReplyKeyboardMarkup(LANG_KEYBOARD,
-                                                                                   resize_keyboard  = True))
-                return REGISTRATION
-            
+            is_group = False
+        choice = update.message.text
+        if("Deutsch" in choice):
+            logging.info("DEGUB - German succesfully triggered!")
+            HANDLER.set_language(chat_id, 'german', is_group)
+            logging.info("DEGUB - German succesfully chosen!")
+        elif("Український" in choice):
+            HANDLER.set_language(chat_id, 'ukranian', is_group)
+        else:
+            await update.message.reply_text(BOT_MSGR["global"]["001"],
+                                            parse_mode   = 'html',
+                                            reply_markup = ReplyKeyboardMarkup(LANG_KEYBOARD,
+                                                                               resize_keyboard  = True))
+            return REGISTRATION
+
+        # Restricting access to private chats from groups
+        if(not is_group):
             user_lg = HANDLER.get_language(user_id)
             message = BOT_MSGR[user_lg]["first_contact"].replace('{user_username}', user_username)
             await update.message.reply_text(message,
@@ -265,14 +273,19 @@ async def register(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
  
             return CHOOSING_MENU
         
-        # Register the user if it's the first time interacting with the bot
-        if(not HANDLER.is_user(user_id)):
-            await update.effective_chat.send_message(f"{user_username} hat heute noch nichts geschrieben. Schick eine Erinnerung :)")
-            HANDLER.insert_user(user_id, user_username)
+        # (G) Register the user if it's the first time interacting with the bot
+        user_lg = HANDLER.get_language(chat_id, is_group = True)
+        logging.info("Language on group succesfully chosen!")
+        await update.message.reply_text(BOT_MSGR[user_lg]["g_new_user"],
+                                        parse_mode   = 'html',
+                                        reply_markup = ReplyKeyboardMarkup(LANG_KEYBOARD,
+                                                                           resize_keyboard  = True))
+        # await update.effective_chat.send_message(f"{user_username} hat heute noch nichts geschrieben. Schick eine Erinnerung :)")
+        HANDLER.add_user(user_id, user_username)
         
         # Link user with the connection if it's not already
         if(not HANDLER.is_in_connection(user_id, chat_id)):
-            HANDLER.insert_connection(user_id, chat_id)
+            HANDLER.add_connection(user_id, chat_id)
         
         # Confirm all users are recorded in db.connections, else loop until satisfied
         connections   = HANDLER.return_users_in_connections(chat_id)
@@ -280,6 +293,7 @@ async def register(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
         users_left    = member_count - len(connections)
         logging.debug(f'connections: {connections}; member_count: {member_count}')
         if(users_left == 0):
+            # All users are found
             await update.effective_chat.send_message(f"Wir sind startklar! Lasst uns gemeinsam lesen und beten!")
             HANDLER.update_chat(chat_id, 1)
             return MAIN_LOOP
@@ -307,20 +321,21 @@ async def update_chat(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int
                 if(not already_increased):
                     streak = HANDLER.update_chat_streak(chat_id)
                     await update.effective_chat.send_message(f"Ihr seid schon {streak} Tage aktiv 👍 macht weiter so 🤝🙏")
-                    # await update.effective_chat.send_message(f"DEBUG: date returned {already_increased}; today is {date.today().strftime('%Y-%m-%d')}")
         except Exception as e:
             logging.error(e.with_traceback)
             raise
     else:
-        logging.debug("Method update_chat() triggered on personal chat… Ignoring…\n\n\n")
+        logging.debug("Method update_chat() triggered on personal chat… Ignoring…")
     return MAIN_LOOP
 
+# TODO - Check this still works
 async def update_members(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     chat_id = update.effective_chat.id
-    logging.debug(f'Member count change for {chat_id}\n\n\n')
+    logging.debug(f'Member count change for {chat_id}')
+    
+    # If there are still memebrs in the group, perform updates, else leave group
     members = await update.effective_chat.get_member_count() - 1
     if(members):
-        logging.debug(f'Member updates for {chat_id}\n\n\n')
         members_registered = HANDLER.return_chat_member_count(chat_id)
         
         # Updating member_count in database

@@ -11,7 +11,11 @@
             "order_material" : "Du benötigst neues metanoia-Material?\n\n- Bibel Journal\n- Themenheft\n- Geben\n- Gehen\n- Beten\n\nSchreib uns was du brauchst und wir schicken es dir zu. <a href = 'https://metanoia-movement.org'>email an uns!</a>",
             "conference"     : "Für 2025 sind 4 lokale \"metanoia-Tage\" geplant. 2026 wollen wir vom 24.-26.April die dritte Konferenz feiern.\n\n[metanoia-website](http://www.metanoia-movement.org)",
             "pray_for_me"    : "Coming up…",
-            "GROUP_TEXTS"    : "========================="
+            "GROUP_TEXTS"    : "=========================",
+            "01_all_users"   : "Wir sind startklar! Lasst uns gemeinsam lesen und beten!",
+            "02_missing_con" : "Dein Jüngerschaftspartner hat noch nichts geschrieben. Wenn er seinen Namen schreibt, sind wir startklar 😉.",
+            "up_streak_inc"  : "Ihr seid schon {streak} Tage aktiv 👍 macht weiter so 🤝🙏.",
+            "g_new_user"     : "{user_username} hat heute noch nichts geschrieben. Schick eine Erinnerung :)"
         },
 
         "ukranian" :
@@ -25,7 +29,8 @@
             "order_material" : "UK_order_material, {user_username}",
             "conference"     : "UK_conference, {user_username}",
             "pray_for_me"    : "UK_Coming up…",
-            "GROUP_TEXTS"    : "========================="
+            "GROUP_TEXTS"    : "=========================",
+            "g_new_user"     : "{user_username} ще нічого не опублікував. Надішліть нагадування))"
         },
         "global" :
         {
@@ -35,8 +40,10 @@
             "002"            : "&#127465;&#127466;: Bitte wählen Sie eine Sprache, um fortzufahren.\n&#127482;&#127462;: Будь ласка, оберіть мову для продовження.",
             "INDIV_ERROR"    : "=========================",
             "101"            : "&#127465;&#127466;: Fehler 101: Sieht so aus, als gäbe es einen Fehler in Ihren Spracheinstellungen. Bitte wählen Sie eine andere Sprache und, falls das Problem weiterhin besteht, kontaktieren Sie das Metanoia Staff Team für Unterstützung.\n&#127482;&#127462;: Помилка 101: Схоже, виникла помилка у ваших мовних налаштуваннях; будь ласка, виберіть мову і, якщо проблема не зникне, зверніться за підтримкою до команди Metanoia Staff.",
+            "GROUP_TEXTS"    : "=========================",
+            "201"            : "TODO: Entry message + Selecting a language\n\n&#127465;&#127466;: Hey! Wählen Sie eine Sprache für den Anfang!\n&#127482;&#127462;: Привіт! Оберіть мову для початку!",
             "GROUP_ERROR"    : "=========================",
-            "201"            : "ERROR 201:\n\n&#127465;&#127466;: Ich habe nicht die Berechtigung, die Nachrichten dieser Gruppe zu sehen! Bitte stellen Sie sicher, dass ich in der Einstellungsleiste dieser Gruppe die erforderlichen Berechtigungen habe!\n&#127482;&#127462;: У мене немає прав для перегляду повідомлень цієї групи! Будь ласка, переконайтеся, що у мене є необхідні дозволи в панелі налаштувань цієї групи!"
+            "301"            : "ERROR 301:\n\n&#127465;&#127466;: Ich habe nicht die Berechtigung, die Nachrichten dieser Gruppe zu sehen! Bitte stellen Sie sicher, dass ich in der Einstellungsleiste dieser Gruppe die erforderlichen Berechtigungen habe!\n&#127482;&#127462;: У мене немає прав для перегляду повідомлень цієї групи! Будь ласка, переконайтеся, що у мене є необхідні дозволи в панелі налаштувань цієї групи!"
         }
     },
     "data": {
