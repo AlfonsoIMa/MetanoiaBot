@@ -118,7 +118,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
             logging.info(f'Succesful registration of {chat_id} with {members} member(s)! returning to REGISTRATION')
         except IntegrityError as i:
             logging.warning(f'IntegrityError for {chat_id} has been triggered! Defaulting to Registration for confirmation.')
-            # TODO
+            # TODO - Integrity Error message; send to chat update?
             await update.effective_chat.send_message("Es scheint, als hättet ihr den Chat mehrfach gestartet. Lasst uns schauen, ob alles in Ordnung ist. Schreibt beide mal eine Nachricht.")
         logging.debug(f'\n\n\nSuccesful exit from try/catch sequence, returning to REGISTRATION')
         return REGISTRATION
@@ -294,10 +294,12 @@ async def register(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
         logging.debug(f'connections: {connections}; member_count: {member_count}')
         if(users_left == 0):
             # All users are found
+            # TODO - Change to 01_all_users
             await update.effective_chat.send_message(f"Wir sind startklar! Lasst uns gemeinsam lesen und beten!")
             HANDLER.update_chat(chat_id, 1)
             return MAIN_LOOP
         # Missing n connections
+        # TODO - Change to 02_missing_con
         await update.effective_chat.send_message(f"Dein Jüngerschaftspartner hat noch nichts geschrieben. Wenn er seinen Namen schreibt, sind wir startklar 😉.")
     except Exception as e:
         raise
@@ -320,6 +322,7 @@ async def update_chat(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int
                 logging.info(f"All connections updated for {chat_id}")
                 if(not already_increased):
                     streak = HANDLER.update_chat_streak(chat_id)
+                    # TODO - up_streak_inc
                     await update.effective_chat.send_message(f"Ihr seid schon {streak} Tage aktiv 👍 macht weiter so 🤝🙏")
         except Exception as e:
             logging.error(e.with_traceback)
@@ -401,16 +404,20 @@ async def run_operator(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
                 elif(days_passed in range(3, 7)):
                     HANDLER.update_chat_streak(chat_id, reset = True)
                     HANDLER.update_chat(chat_id, HANDLER.INACTIVE_ONE_WEEK)
+                    # TODO - 03_inac_one
                     await context.bot.send_message(chat_id = chat_id, text = "Hey! Es sieht so aus, als hättet ihr aktuell Schwierigkeiten. Ich will euch ermutigen, macht weiter - Es lohnt sich! 🙏🏼")
                 elif(days_passed in range(8, 15)):
                     HANDLER.update_chat(chat_id, HANDLER.INACTIVE_TWO_WEEKS)
+                    # TODO - 04_inac_two
                     await context.bot.send_message(chat_id = chat_id, text = "Hey! Ihr habt schon lange nichts mehr geteilt! Seid ihr noch unterwegs? Dann gebt hier doch mal wieder ein Update und startet wieder voll durch.")
                 elif(days_passed in range(16, 29)):
                     HANDLER.update_chat(chat_id, HANDLER.INACTIVE_THREE_WEKS)
+                    # TODO - 05_inac_tri
                     await context.bot.send_message(chat_id = chat_id, text = "Es sieht so aus, als würdet ihr aktuell nicht mehr gemeinsam Lesen und beten…")
                 else:
                     HANDLER.update_chat(chat_id, HANDLER.CLOSED) 
                     HANDLER.update_connections_status(chat_id, HANDLER.CLOSED)
+                    # TODO - 06_inac_kva
                     await context.bot.send_message(chat_id = chat_id, text = "Leider sehe ich immer noch keine Aktivität. Daher sende ich euch keine Updates mehr. Wenn immer ihr wieder starten wollt, aktiviert mich einfach wieder und wir gehen gemeinsam wieder los")
                     await context.bot.leave_chat(chat_id)
                 # All active chats set to 1

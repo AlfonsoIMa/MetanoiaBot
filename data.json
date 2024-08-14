@@ -7,6 +7,7 @@
             "INDIV_TEXTS"    : "=========================",
             "first_contact"  : "Hey <b>{user_username}</b> schön, dass Du dabei bist. Ich freue mich auf die verändernde Reise der Nachfolge Jesu! Schreib mir doch kurz eine Nachricht.",
             "start_regis"    : "Hallo {user_username}! Schön, Sie wiederzusehen. Wie kann ich Ihnen heute helfen?",
+            "integrity_e"    : "Es scheint, dass Sie den Chat mehrmals gestartet haben. Mal sehen, ob alles in Ordnung ist. Bitte wählen Sie eine Option aus dem Menü. Wenn das Problem weiterhin besteht, wenden Sie sich bitte an das Support-Team.",
             "contact"        : "Du hast Fragen oder Vorschläge? Schreib uns einfach eine info@metanoia-movement.org",
             "order_material" : "Du benötigst neues metanoia-Material?\n\n- Bibel Journal\n- Themenheft\n- Geben\n- Gehen\n- Beten\n\nSchreib uns was du brauchst und wir schicken es dir zu. <a href = 'https://metanoia-movement.org'>email an uns!</a>",
             "conference"     : "Für 2025 sind 4 lokale \"metanoia-Tage\" geplant. 2026 wollen wir vom 24.-26.April die dritte Konferenz feiern.\n\n[metanoia-website](http://www.metanoia-movement.org)",
@@ -14,6 +15,10 @@
             "GROUP_TEXTS"    : "=========================",
             "01_all_users"   : "Wir sind startklar! Lasst uns gemeinsam lesen und beten!",
             "02_missing_con" : "Dein Jüngerschaftspartner hat noch nichts geschrieben. Wenn er seinen Namen schreibt, sind wir startklar 😉.",
+            "03_inac_one"    : "Hey! Es sieht so aus, als hättet ihr aktuell Schwierigkeiten. Ich will euch ermutigen, macht weiter - Es lohnt sich! 🙏🏼",
+            "04_inac_two"    : "Hey! Ihr habt schon lange nichts mehr geteilt! Seid ihr noch unterwegs? Dann gebt hier doch mal wieder ein Update und startet wieder voll durch.",
+            "05_inac_tri"    : "Es sieht so aus, als würdet ihr aktuell nicht mehr gemeinsam Lesen und beten…",
+            "06_inac_kva"    : "Leider sehe ich immer noch keine Aktivität. Daher sende ich euch keine Updates mehr. Wenn immer ihr wieder starten wollt, aktiviert mich einfach wieder und wir gehen gemeinsam wieder los",
             "up_streak_inc"  : "Ihr seid schon {streak} Tage aktiv 👍 macht weiter so 🤝🙏.",
             "g_new_user"     : "{user_username} hat heute noch nichts geschrieben. Schick eine Erinnerung :)"
         },
@@ -30,6 +35,13 @@
             "conference"     : "UK_conference, {user_username}",
             "pray_for_me"    : "UK_Coming up…",
             "GROUP_TEXTS"    : "=========================",
+            "01_all_users"   : "Ми готові! Давайте читати і молитися разом!",
+            "02_missing_con" : "Ваш напарник по учнівству ще нічого не написав. Коли він напише своє ім'я, ми будемо готові йти 😉.",
+            "03_inac_one"    : "Привіт! Схоже, що ти зараз маєш труднощі. Хочу тебе підбадьорити, продовжуй - воно того варте! 🙏🏼",
+            "04_inac_two"    : "Привіт! Ти давно нічим не ділився! Все ще подорожуєш? Тоді чому б тобі не повідомити про себе тут і не повернутися в стрій?",
+            "05_inac_tri"    : "Схоже, що ви більше не читаєте і не молитеся разом...",
+            "06_inac_kva"    : "На жаль, я все ще не бачу ніякої активності. Тому я більше не надсилаю вам жодних оновлень. Коли захочете почати знову, просто активуйте мене, і ми почнемо знову разом.",
+            "up_streak_inc"  : "Ви були активні протягом {streak} днів активні 👍 продовжуйте в тому ж дусі 🤝🙏.",
             "g_new_user"     : "{user_username} ще нічого не опублікував. Надішліть нагадування))"
         },
         "global" :
