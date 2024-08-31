@@ -388,24 +388,16 @@ async def run_operator(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
                 elif(days_passed in range(3, 7)):
                     HANDLER.update_chat_streak(chat_id, reset = True)
                     HANDLER.update_chat(chat_id, HANDLER.INACTIVE_ONE_WEEK)
-                    # TEST - 03_inac_one - 06_inac_kva
-                    # await context.bot.send_message(chat_id = chat_id, text = "Hey! Es sieht so aus, als hättet ihr aktuell Schwierigkeiten. Ich will euch ermutigen, macht weiter - Es lohnt sich! 🙏🏼")
                     await update.effective_chat.send_message(BOT_MSGR[user_lg]["03_inac_one"])
-                    await update.effective_chat.send_message(BOT_MSGR[user_lg]["04_inac_two"])
-                    await update.effective_chat.send_message(BOT_MSGR[user_lg]["05_inac_tri"])
-                    await update.effective_chat.send_message(BOT_MSGR[user_lg]["06_inac_kva"])
                 elif(days_passed in range(8, 15)):
                     HANDLER.update_chat(chat_id, HANDLER.INACTIVE_TWO_WEEKS)
-                    # await context.bot.send_message(chat_id = chat_id, text = "Hey! Ihr habt schon lange nichts mehr geteilt! Seid ihr noch unterwegs? Dann gebt hier doch mal wieder ein Update und startet wieder voll durch.")
                     await update.effective_chat.send_message(BOT_MSGR[user_lg]["04_inac_two"])
                 elif(days_passed in range(16, 29)):
                     HANDLER.update_chat(chat_id, HANDLER.INACTIVE_THREE_WEKS)
-                    # await context.bot.send_message(chat_id = chat_id, text = "Es sieht so aus, als würdet ihr aktuell nicht mehr gemeinsam Lesen und beten…")
                     await update.effective_chat.send_message(BOT_MSGR[user_lg]["05_inac_tri"])
                 else:
                     HANDLER.update_chat(chat_id, HANDLER.CLOSED) 
                     HANDLER.update_connections_status(chat_id, HANDLER.CLOSED)
-                    # await context.bot.send_message(chat_id = chat_id, text = "Leider sehe ich immer noch keine Aktivität. Daher sende ich euch keine Updates mehr. Wenn immer ihr wieder starten wollt, aktiviert mich einfach wieder und wir gehen gemeinsam wieder los")
                     await update.effective_chat.send_message(BOT_MSGR[user_lg]["06_inac_kva"])
                     await context.bot.leave_chat(chat_id)
                 # All active chats set to 1
@@ -442,8 +434,9 @@ async def broadcasting(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
     for chat in chats:
         try:
             await context.bot.send_message(chat_id = chat[0], text = formatted_text, parse_mode = 'HTML')
-        except Exception as e: #TODO - Find the error and leave the group
-            pass
+        except Forbidden as e:
+            # User is no longer in the grou
+            HANDLER.update_connections_status(chat_id, HANDLER.CLOSED)
     return CHOOSING_MENU
 
 def days_between(dateOne: str, dateTwo: str) -> int:
