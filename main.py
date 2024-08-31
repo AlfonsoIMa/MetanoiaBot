@@ -20,22 +20,6 @@ NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FO
 DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 """
-
-"""
-    - /start will result in registration and automatic lookup for prayer pair.
-        - if not found, notify and suggest reccommend bot to local church / community.
-        - if found, pair and create group (?).
-    - group logic:
-        - every X days, if there are no updates, send a message asking for updates.
-        - after X days, close the connection and notify the users.
-    - /pray will ask for a public prayer request that everyone can see and pray for.
-        - /prayers will plot the last 10 most unpopular prayer requests so that you can pray for them.
-        - Prayers have to be 140 characters long.
-        - It _can_ include ID.
-    - General announcements
-        - should give the opportunity to order new materials, register for coming events and so on. 
-"""
-
 import logging, threading, time, re, os, json
 from datetime import date, datetime
 from handler import BotParser as bp
@@ -65,7 +49,6 @@ TOKEN:          Final = open('key.txt').read().strip()
 BOT_USERNAME:   Final = BOT_DATA["bot_name"]
 DATABASE:       Final = "metanoia.db"
 HANDLER:        Final = bp(DATABASE)
-# CLIENT = Application.chat_data
 
 # CONSTANTS
 MAIN_LOOP, REGISTRATION, PRAYING, CHOOSING_MENU, BROADCAST, LANGUAGE_CHOSEN = range(6)
@@ -93,9 +76,10 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     
     # Group initialization
     if(user_id != chat_id):
+        # Check for /start pressing - deprecates the try/catch for integrity errors
         if(not HANDLER.get_chat(chat_id)): 
+            # ERROR 201 - Group lacks permissions to let the bot see the messages
             if(not context.bot.can_read_all_group_messages):
-                # ERROR 201 - Group lacks permissions to let the bot see the messages
                 logging.error(f'301 : Group {chat_id} has no permissions to read messages! Informing {user_id}')
                 await update.effective_chat.send_message(BOT_MSGR["global"]["201"],
                                                          parse_mode = "html")
@@ -105,9 +89,9 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
             await update.effective_chat.send_action(constants.ChatAction.TYPING)
             members = await update.effective_chat.get_member_count() - 1
             logging.debug(f'Group {chat_id} has {members} member(s)!\n\n\n')
-           
-        # Register the chat
-        try:
+         
+            # Register the chat
+            
             # Entry message for users in groups greeting and plotting for a language
             await update.message.reply_text(BOT_MSGR["global"]["201"],
                                             parse_mode   = 'html',
@@ -116,13 +100,13 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
             logging.info(f'Registering {chat_id} with {members} member(s)!')
             HANDLER.add_chat(chat_id, members)
             logging.info(f'Succesful registration of {chat_id} with {members} member(s)! returning to REGISTRATION')
-        except IntegrityError as i:
+            return REGISTRATION
+        else:
             logging.warning(f'IntegrityError for {chat_id} has been triggered! Defaulting to Registration for confirmation.')
-            # TODO - Integrity Error message; send to chat update?
-            await update.effective_chat.send_message("Es scheint, als hättet ihr den Chat mehrfach gestartet. Lasst uns schauen, ob alles in Ordnung ist. Schreibt beide mal eine Nachricht.")
-        logging.debug(f'\n\n\nSuccesful exit from try/catch sequence, returning to REGISTRATION')
-        return REGISTRATION
-    
+            await update.message.reply_text(BOT_MSGR["global"]["301"],
+                                            parse_mode   = 'html')
+            return MAIN_LOOP
+           
     # Indivdual initialization
     else:
         # Verify that contact is already a registered user.
@@ -252,8 +236,8 @@ async def register(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
             logging.info("DEGUB - German succesfully triggered!")
             HANDLER.set_language(chat_id, 'german', is_group)
             logging.info("DEGUB - German succesfully chosen!")
-        elif("Український" in choice):
-            HANDLER.set_language(chat_id, 'ukranian', is_group)
+        elif("Українська" in choice):
+                HANDLER.set_language(chat_id, 'ukranian', is_group)
         else:
             await update.message.reply_text(BOT_MSGR["global"]["001"],
                                             parse_mode   = 'html',
@@ -294,13 +278,11 @@ async def register(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
         logging.debug(f'connections: {connections}; member_count: {member_count}')
         if(users_left == 0):
             # All users are found
-            # TODO - Change to 01_all_users
-            await update.effective_chat.send_message(f"Wir sind startklar! Lasst uns gemeinsam lesen und beten!")
+            await update.effective_chat.send_message(BOT_MSGR[user_lg]["01_all_users"])
             HANDLER.update_chat(chat_id, 1)
             return MAIN_LOOP
         # Missing n connections
-        # TODO - Change to 02_missing_con
-        await update.effective_chat.send_message(f"Dein Jüngerschaftspartner hat noch nichts geschrieben. Wenn er seinen Namen schreibt, sind wir startklar 😉.")
+        await update.effective_chat.send_message(BOT_MSGR[user_lg]["02_missing_con"])
     except Exception as e:
         raise
     return REGISTRATION
@@ -308,7 +290,7 @@ async def register(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
 async def update_chat(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     chat_id = update.effective_chat.id
     user_id = update.effective_user.id
-    # await update.effective_chat.send_message(f"(DEBUG) Chat Updated")
+    user_lg = HANDLER.get_language(chat_id, is_group = True)
     logging.debug(f"Reading updates from: {user_id}\n\n\n")
     if(chat_id != user_id):
         logging.debug(f"Method update_chat() triggered on chat {chat_id}!\n\n\n")
@@ -320,10 +302,11 @@ async def update_chat(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int
             already_increased = HANDLER.return_streak_already_increased(chat_id)
             if(updated):
                 logging.info(f"All connections updated for {chat_id}")
+
+                # Automatic trigger to check if the chat was already updated that day
                 if(not already_increased):
                     streak = HANDLER.update_chat_streak(chat_id)
-                    # TODO - up_streak_inc
-                    await update.effective_chat.send_message(f"Ihr seid schon {streak} Tage aktiv 👍 macht weiter so 🤝🙏")
+                    await update.effective_chat.send_message(BOT_MSGR[user_lg]["up_streak_inc"])
         except Exception as e:
             logging.error(e.with_traceback)
             raise
@@ -398,27 +381,32 @@ async def run_operator(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
             for row_fetched in all_chats:
                 # Update status on old chats based on date and send message accordingly
                 days_passed = days_between(row_fetched[2], today)
-                chat_id = row_fetched[0]
+                chat_id     = row_fetched[0]
+                user_lg     = HANDLER.get_language(chat_id, is_group = True)
                 if(days_passed in range(0, 2)):
                    continue
                 elif(days_passed in range(3, 7)):
                     HANDLER.update_chat_streak(chat_id, reset = True)
                     HANDLER.update_chat(chat_id, HANDLER.INACTIVE_ONE_WEEK)
-                    # TODO - 03_inac_one
-                    await context.bot.send_message(chat_id = chat_id, text = "Hey! Es sieht so aus, als hättet ihr aktuell Schwierigkeiten. Ich will euch ermutigen, macht weiter - Es lohnt sich! 🙏🏼")
+                    # TEST - 03_inac_one - 06_inac_kva
+                    # await context.bot.send_message(chat_id = chat_id, text = "Hey! Es sieht so aus, als hättet ihr aktuell Schwierigkeiten. Ich will euch ermutigen, macht weiter - Es lohnt sich! 🙏🏼")
+                    await update.effective_chat.send_message(BOT_MSGR[user_lg]["03_inac_one"])
+                    await update.effective_chat.send_message(BOT_MSGR[user_lg]["04_inac_two"])
+                    await update.effective_chat.send_message(BOT_MSGR[user_lg]["05_inac_tri"])
+                    await update.effective_chat.send_message(BOT_MSGR[user_lg]["06_inac_kva"])
                 elif(days_passed in range(8, 15)):
                     HANDLER.update_chat(chat_id, HANDLER.INACTIVE_TWO_WEEKS)
-                    # TODO - 04_inac_two
-                    await context.bot.send_message(chat_id = chat_id, text = "Hey! Ihr habt schon lange nichts mehr geteilt! Seid ihr noch unterwegs? Dann gebt hier doch mal wieder ein Update und startet wieder voll durch.")
+                    # await context.bot.send_message(chat_id = chat_id, text = "Hey! Ihr habt schon lange nichts mehr geteilt! Seid ihr noch unterwegs? Dann gebt hier doch mal wieder ein Update und startet wieder voll durch.")
+                    await update.effective_chat.send_message(BOT_MSGR[user_lg]["04_inac_two"])
                 elif(days_passed in range(16, 29)):
                     HANDLER.update_chat(chat_id, HANDLER.INACTIVE_THREE_WEKS)
-                    # TODO - 05_inac_tri
-                    await context.bot.send_message(chat_id = chat_id, text = "Es sieht so aus, als würdet ihr aktuell nicht mehr gemeinsam Lesen und beten…")
+                    # await context.bot.send_message(chat_id = chat_id, text = "Es sieht so aus, als würdet ihr aktuell nicht mehr gemeinsam Lesen und beten…")
+                    await update.effective_chat.send_message(BOT_MSGR[user_lg]["05_inac_tri"])
                 else:
                     HANDLER.update_chat(chat_id, HANDLER.CLOSED) 
                     HANDLER.update_connections_status(chat_id, HANDLER.CLOSED)
-                    # TODO - 06_inac_kva
-                    await context.bot.send_message(chat_id = chat_id, text = "Leider sehe ich immer noch keine Aktivität. Daher sende ich euch keine Updates mehr. Wenn immer ihr wieder starten wollt, aktiviert mich einfach wieder und wir gehen gemeinsam wieder los")
+                    # await context.bot.send_message(chat_id = chat_id, text = "Leider sehe ich immer noch keine Aktivität. Daher sende ich euch keine Updates mehr. Wenn immer ihr wieder starten wollt, aktiviert mich einfach wieder und wir gehen gemeinsam wieder los")
+                    await update.effective_chat.send_message(BOT_MSGR[user_lg]["06_inac_kva"])
                     await context.bot.leave_chat(chat_id)
                 # All active chats set to 1
                 if(row_fetched[5] == 0):
