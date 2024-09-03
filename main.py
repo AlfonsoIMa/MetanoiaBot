@@ -91,7 +91,6 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
             logging.debug(f'Group {chat_id} has {members} member(s)!\n\n\n')
          
             # Register the chat
-            
             # Entry message for users in groups greeting and plotting for a language
             await update.message.reply_text(BOT_MSGR["global"]["201"],
                                             parse_mode   = 'html',
@@ -132,7 +131,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
             return REGISTRATION
         
         # Initial message
-        await update.message.reply_text(BOT_MSGR[user_lg]["start_regis"],
+        await update.message.reply_text(BOT_MSGR[user_lg]["start_regis"].replace('{user_username}', user_username),
                                         parse_mode   = 'html',
                                         reply_markup = ReplyKeyboardMarkup(MAIN_KEYBOARD[user_lg],
                                                                            resize_keyboard  = True))
@@ -260,7 +259,7 @@ async def register(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
         # (G) Register the user if it's the first time interacting with the bot
         user_lg = HANDLER.get_language(chat_id, is_group = True)
         logging.info("Language on group succesfully chosen!")
-        await update.message.reply_text(BOT_MSGR[user_lg]["g_new_user"],
+        await update.message.reply_text(BOT_MSGR[user_lg]["g_new_user"].replace("{user_username}", user_username),
                                         parse_mode   = 'html',
                                         reply_markup = ReplyKeyboardMarkup(LANG_KEYBOARD,
                                                                            resize_keyboard  = True))
@@ -306,7 +305,7 @@ async def update_chat(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int
                 # Automatic trigger to check if the chat was already updated that day
                 if(not already_increased):
                     streak = HANDLER.update_chat_streak(chat_id)
-                    await update.effective_chat.send_message(BOT_MSGR[user_lg]["up_streak_inc"])
+                    await update.effective_chat.send_message(BOT_MSGR[user_lg]["up_streak_inc"].replace("{streak}", str(streak)))
         except Exception as e:
             logging.error(e.with_traceback)
             raise
