@@ -194,9 +194,10 @@ async def change_language(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
         on_group = True
     try:
         if("Deutsch" in choice):
-            HANDLER.set_language(user_id, 'german')
-        elif("Український" in choice):
-            HANDLER.set_language(user_id, 'ukranian')
+            HANDLER.set_language(user_id, 'german', on_group)
+        # TODO: Language change has to be implemented more efficiently
+        elif("Українська" in choice):
+            HANDLER.set_language(user_id, 'ukranian', on_group)
         else:
             await update.message.reply_text(BOT_MSGR["global"]["001"],
                                             parse_mode   = 'html',
@@ -205,13 +206,18 @@ async def change_language(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
             return LANGUAGE_CHOSEN
         
         user_lg = HANDLER.get_language(user_id)
-        message = BOT_MSGR[user_lg]["first_contact"].replace('{user_username}', user_username)
-        await update.message.reply_text(message,
-                                        parse_mode = 'HTML',
-                                        reply_markup = ReplyKeyboardMarkup(MAIN_KEYBOARD[user_lg],
-                                                                           input_field_placeholder = "CHOOSE AN OPTION",
-                                                                           resize_keyboard = True))
-        return CHOOSING_MENU
+        # Selective on groups
+        if(not on_group):
+            message = BOT_MSGR[user_lg]["first_contact"].replace('{user_username}', user_username)
+            await update.message.reply_text(message,
+                                            parse_mode = 'HTML',
+                                            reply_markup = ReplyKeyboardMarkup(MAIN_KEYBOARD[user_lg],
+                                                                               input_field_placeholder = "CHOOSE AN OPTION",
+                                                                               resize_keyboard = True))
+            return CHOOSING_MENU
+        else:
+            # TODO
+            return MAIN_LOOP
     except Exception as e:
         raise
 
@@ -449,12 +455,13 @@ async def error(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 def main() -> None:
     convStart = ConversationHandler(
-        entry_points = [CommandHandler("start", start),
-                        CommandHandler("pray", pray),
+        entry_points = [CommandHandler("start",     start),
+                        CommandHandler("pray",      pray),
                         CommandHandler("broadcast", broadcast),
-                        CommandHandler("run", run_operator)],
+                        CommandHandler("run",       run_operator)],
         states = {MAIN_LOOP:       [MessageHandler(filters.StatusUpdate.NEW_CHAT_MEMBERS, update_members),
                                     MessageHandler(filters.StatusUpdate.LEFT_CHAT_MEMBER, update_members),
+                                    CommandHandler("language",                            change_language),
                                     MessageHandler(None,                                  update_chat)],
                   REGISTRATION:    [MessageHandler(None, register)],
                   PRAYING:         [MessageHandler(None, pray)],

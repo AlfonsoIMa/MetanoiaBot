@@ -240,6 +240,10 @@ class BotParser():
         q_result = q_result.fetchall()
         return True if len(q_result) == 1 else False
 
+    ##############################
+    #  SETTERS
+    ##############################
+
     def set_language(self, chat_id: int, language: str, is_group: bool = False) -> bool:
         try:
             if(is_group):
